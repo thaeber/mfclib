@@ -1,0 +1,17 @@
+ID,name,symbol,density,CF
+4,Ammonia,NH3,0.781,0.786
+5,Agon,Ar,1.784,1.395
+17,Carbon dioxide,CO2,1.977,0.740
+19,Carbon monoxide,CO,1.250,0.995
+33,Ethane,C2H6,1.357,0.490
+34,Ethene,C2H4,1.261,0.619
+54,Helium,He,0.1785,1.386
+56,Hydrogen,H2,0.08991,1.008
+67,Methane,CH4,0.7175,0.763
+77,Nitric oxide,NO,1.339,0.995
+78,Nitrogen,N2,1.251,1.000
+79,Nitrogen dioxide,NO2,2.052,0.758
+82,Nitrous Oxide,N2O,1.964,0.752
+83,Oxygen,O2,1.429,0.988
+82,Propane,C3H8,2.008,0.343
+94,Propene,C3H6,1.875,0.401

@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "mfclib"
+version = "0.1.0"
+description = "A small Python module to calculate flow rates for gas mixtures."
+authors = ["Thomas Haeber <thomas.haeber@kit.edu>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+click = "^8.1.3"
+pandas = "^1.5.3"
+numpy = "^1.24.2"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.2.2"
+pylint = "^2.17.2"
+yapf = "^0.32.0"
+mypy = "^1.1.1"
+jupyter = "^1.0.0"
+toml = "^0.10.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
