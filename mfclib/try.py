@@ -5,7 +5,16 @@ import pandas as pd
 import xarray as xr
 import numpy as np
 
+import mfclib
 from mfclib import Mixture, Supply
+
+import pint
+
+Q = pint.Quantity
+mfclib.register_pint_fractions()
+
+#%%
+mfclib.supply.unify_mixture_value('1,54')
 
 #%%
 sources = [
@@ -16,50 +25,18 @@ sources = [
     Supply.from_components('100% H2', H2='*'),
     Supply.from_components('1% NO2 in Ar', NO2=0.01072, N2O=0.0, Ar='*'),
 ]
-sources
+
+mfclib.supply_proportions_for_mixture(sources, dict(Ar='*', CH2O=0.1))
 
 # %%
-import scipy.optimize
+sources = [Supply.from_kws(O2=0.21, N2='*'), Supply.from_kws(NO=0.003, N2='*')]
 
+mfclib.supply_proportions_for_mixture(
+    sources,
+    dict(CO=0.0004, N2='*'),
+)
 
-def flow_rates_for_mixture(sources: Iterable[Supply],
-                           mixture: Mixture | Mapping[str, Any]):
-    if not isinstance(mixture, Mixture):
-        mixture = Mixture(mixture)
-
-    # get set of all involved species
-    _species = set(mixture.species)
-    for mfc in sources:
-        _species |= set(mfc.feed.species)
-    species = sorted(_species)
-
-    # build MFC matrix
-    A = xr.DataArray(
-        [[source.feed.get(key, 0.0) for source in sources] for key in species],
-        dims=('species', 'supply'),
-        coords=dict(species=species,
-                    supply=[source.name for source in sources]),
-    )
-
-    # build target composition vector
-    b = xr.DataArray(
-        [mixture.get(key, 0.0) for key in species],
-        dims=('species', ),
-        coords=dict(species=species),
-    )
-
-    # solve system of linear equations
-    x = xr.DataArray(
-        scipy.optimize.nnls(A.data, b.data)[0],
-        dims=('supply', ),
-        coords=dict(supply=[source.name for source in sources]),
-    )
-
-    return x
-
-
-rates = flow_rates_for_mixture(sources, dict(NO=400e-6, CO=400e-6, Ar='*'))
-rates *= 10.0
-rates.to_dataframe('Vdot')
+# %%
+Supply.from_kws(CO=0.1492, Ar='*').equivalent_flow_rate(0.0272413)
 
 # %%

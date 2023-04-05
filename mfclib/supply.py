@@ -1,13 +1,18 @@
 import collections
-from typing import Any, Callable, Dict, Mapping, TypeVar
+import warnings
+from typing import Any, Callable, Dict, Iterable, List, Mapping, TypeVar
 
-from attrs import Factory, field, frozen
-
+import numpy as np
+import scipy.optimize
+from attrs import field, frozen
+from numpy.typing import NDArray
+import pint
 from .cf import calculate_CF
 
 K = TypeVar("K")
 V = TypeVar("V")
 T = TypeVar("T")
+
 
 
 def valmap(func: Callable[[V], T], mappable: Mapping[K, V]):
@@ -19,7 +24,20 @@ def valfilter(predicate: Callable[[V], T], mappable: Mapping[K, V]):
 
 
 def unify_mixture_value(value: Any):
-    return float(value)
+    converters: List[Callable[[Any], float]] = [
+        float, 
+        lambda x: pint.Quantity(x).to('dimensionless').magnitude,
+    ]
+    
+    # loop over converters and return first value where conversion succeeds
+    for converter in converters:
+        try:
+            return converter(value)
+        except:
+            pass
+
+    # if we are here, no converter worked, so raise an exception
+    raise ValueError(f'Could not convert {value} to a number.')
 
 
 def unify_mixture(feed: Mapping[str, Any], balance=True):
@@ -56,7 +74,7 @@ def unify_mixture(feed: Mapping[str, Any], balance=True):
 
 class Mixture(collections.abc.Mapping):
 
-    def __init__(self, composition: Mapping[str, float]):
+    def __init__(self, composition: Mapping[str, Any]):
         self._composition = unify_mixture(composition)
 
     @classmethod
@@ -74,6 +92,12 @@ class Mixture(collections.abc.Mapping):
     @property
     def mole_fractions(self):
         return list(self._composition.values())
+    
+    @property
+    def cf(self):
+        """Calculates the thermal MFC conversion factor for the mixture composition.
+        """
+        return calculate_CF(self)
 
     def __getitem__(self, key):
         return self._composition[key]
@@ -88,6 +112,12 @@ class Mixture(collections.abc.Mapping):
         comp = [f'{key}={value}' for key, value in self._composition.items()]
         sep = ', '
         return f'Mixture({sep.join(comp)})'
+    
+    def get(self, key: str, default: float = 0.0):  # type: ignore
+        if key in self._composition:
+            return self._composition[key]
+        else:
+            return default
 
 
 @frozen
@@ -118,12 +148,12 @@ class Supply:
     @classmethod
     def from_dict(cls, name: str, components: Mapping[str, Any]):
         return Supply(name, components)
-        
-    @property
-    def cf(self):
-        """Calculates the conversion factor for the feed composition of the MFC.
-        """
-        return calculate_CF(self.feed)
+    
+    @classmethod
+    def from_kws(cls, name: str|None = None, **feed: Any):
+        if (name is None) and len(feed) > 0:
+            name = '|'.join(feed.keys())
+        return Supply(name, feed) # type: ignore
     
     @property
     def species(self):
@@ -133,3 +163,69 @@ class Supply:
     def mole_fractions(self):
         return list(self.feed.values())
     
+    def equivalent_flow_rate(self, flow_rate, reference_mixture:Mapping[str, Any]|None = None):
+        if reference_mixture is None:
+            _ref = Mixture.from_kws(N2=1.0)
+        elif not isinstance(reference_mixture, Mixture):
+            _ref = Mixture(reference_mixture)
+        else:
+            _ref = reference_mixture
+        return flow_rate * _ref.cf / self.feed.cf
+        
+    
+
+def supply_proportions_for_mixture(
+        sources: Iterable[Supply],
+        mixture: Mixture | Mapping[str, Any]) -> NDArray[np.float64]:
+    """Performs a non-negative linear least squares fit to determine the
+    contribution of each gas supply to obtaining a given gas mixture.
+
+    Args:
+        `sources` (Iterable[Supply]): The compositions of the available supply gases.
+        `mixture` (Mixture | Mapping[str, Any]): The composition of the final mixture solved for.
+
+    Returns:
+        NDArray[np.float64]: Array of relative flow rates of each supply required
+            to obtain the desired mixture. The relative flow rates for the supplies
+            are given in the same order as in the `sources` parameter. 
+            The sum of all relative flow rates is 1.
+    """
+    if not isinstance(mixture, Mixture):
+        mixture = Mixture(mixture)
+
+    # check species
+    mixture_species = set(mixture.species)
+    species_in_supply = set()
+    for source in sources:
+        species_in_supply |= set(source.feed.species)
+    species = sorted(mixture_species | species_in_supply)
+
+    # warn if mixture contains species that are not supplied
+    missing_species = mixture_species - species_in_supply
+    if missing_species:
+        details = f'\nThe following species are in the mixture but not in any of the sources:\n{missing_species}'
+        warnings.warn('Missing species in supply.' + details)
+    
+
+    # build MFC matrix
+    A = [[source.feed.get(key, 0.0) for source in sources] for key in species]
+
+    # build target composition vector
+    b = [mixture.get(key, 0.0) for key in species]
+
+    # solve system of linear equations
+    x: NDArray[np.float64] = scipy.optimize.nnls(A, b)[0]
+
+    # check sum of proportions
+    tolerance = 1.0e-4
+    total = np.sum(x)
+    if abs(total -1.0) > tolerance:
+        details += f'\nThe sum of supply proportions (actual value: {total}) is not 1 to within a tolerance of {tolerance}.'
+        details += ' Either the fit did not converge or the desired mixture cannot be obtained using the chosen gas supplies.'
+        details += f'\nObtained proportions:'
+        for source, value in zip(sources, x):
+            details += f'\n{source.name} = {value}'
+        warnings.warn('Inconsistent mixture composition.' + details)
+
+    # return relative flow rates for each supply
+    return x

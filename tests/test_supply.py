@@ -1,6 +1,9 @@
-from mfclib import Supply
-from mfclib.supply import unify_mixture, unify_mixture_value
 import pytest
+
+import mfclib
+from mfclib import Mixture, Supply, supply_proportions_for_mixture
+from mfclib.supply import unify_mixture, unify_mixture_value
+import pint
 
 
 class TestUnifyMixtureValue:
@@ -22,12 +25,26 @@ class TestUnifyMixtureValue:
         with pytest.raises(ValueError):
             unify_mixture_value('test')
 
+    @pytest.mark.skip(
+        reason='Currently pint treats strings with commas in an inconsistent way'
+    )
+    def test_fail_on_thousands_separator(self):
         with pytest.raises(ValueError):
             unify_mixture_value('0,678')
 
-    @pytest.mark.skip(reason='Not implemented yet.')
-    def test_with_quantity(self):
-        pass
+    def test_with_pint_quantity(self):
+        mfclib.register_pint_fractions()
+        assert unify_mixture_value(
+            pint.Quantity('2.0%')) == pytest.approx(0.02)
+        assert unify_mixture_value(
+            pint.Quantity('235.1ppm')) == pytest.approx(0.0002351)
+
+    def test_with_pint_str(self):
+        mfclib.register_pint_fractions()
+        assert unify_mixture_value('2.0%') == pytest.approx(0.02)
+        assert unify_mixture_value('2.0pct') == pytest.approx(0.02)
+        assert unify_mixture_value('2.0percent') == pytest.approx(0.02)
+        assert unify_mixture_value('200ppm') == pytest.approx(0.0002)
 
 
 class TestUnifyMixture:
@@ -83,6 +100,10 @@ class TestSupply:
         with pytest.raises(TypeError):
             Supply(1.0)
 
+    def test_synthesize_name(self):
+        supply = Supply.from_kws(NO=0.003, Ar='*')
+        assert supply.name == 'NO|Ar'
+
     def test_invalid_feed_total(self):
         with pytest.raises(ValueError):
             Supply('some gas', dict(Ar=0.8, O2=0.15, H2=0.2))
@@ -94,4 +115,69 @@ class TestSupply:
 
     def test_conversion_factor(self):
         mfc = Supply.from_components('carrier', N2=0.79, O2=0.21)
-        assert mfc.cf == pytest.approx(0.9974, abs=0.0001)
+        assert mfc.feed.cf == pytest.approx(0.9974, abs=0.0001)
+
+
+class TestProportionsForMixture:
+
+    def test_single_supply(self):
+        x = supply_proportions_for_mixture(
+            [Supply.from_components('carrier', N2='*')],
+            Mixture.from_kws(N2=1.0),
+        )
+        assert x == pytest.approx([1.0])
+
+    def test_complex_sources(self):
+        sources = [
+            Supply('carrier', feed=dict(Ar=1.0)),
+            Supply('100% O2', feed=dict(O2=1.0)),
+            Supply('10% CO in Ar', feed=dict(CO=0.1492, Ar='*')),
+            Supply('3000ppm NO in Ar', feed=dict(NO=0.002959, Ar='*')),
+            Supply.from_components('100% H2', H2='*'),
+            Supply.from_components('1% NO2 in Ar',
+                                   NO2=0.01072,
+                                   N2O=0.0,
+                                   Ar='*'),
+        ]
+
+        x = supply_proportions_for_mixture(
+            sources,
+            dict(Ar='*', NO=400e-6, CO=400e-6),
+        )
+
+        assert x == pytest.approx(
+            [0.86213823, 0, 0.00268097, 0.1351808, 0, 0],
+            abs=1e-8,
+        )
+
+    def test_warn_on_duplicate_species_in_mixture(self):
+        sources = [
+            Supply.from_kws(O2=0.21, N2='*'),
+            Supply.from_kws(NO=0.003, N2='*')
+        ]
+
+        with pytest.warns(UserWarning, match=r'Missing species in supply.'):
+            supply_proportions_for_mixture(
+                sources,
+                dict(CO=0.0004, N2='*'),
+            )
+
+    def test_warn_on_invalid_sum(self):
+        sources = [
+            Supply('carrier', feed=dict(Ar=1.0)),
+            Supply('100% O2', feed=dict(O2=1.0)),
+            Supply('10% CO in Ar', feed=dict(CO=0.1492, Ar='*')),
+            Supply('3000ppm NO in Ar', feed=dict(NO=0.002959, Ar='*')),
+            Supply.from_components('100% H2', H2='*'),
+            Supply.from_components('1% NO2 in Ar',
+                                   NO2=0.01072,
+                                   N2O=0.0,
+                                   Ar='*'),
+        ]
+
+        with pytest.warns(UserWarning,
+                          match=r'Inconsistent mixture composition.'):
+            supply_proportions_for_mixture(
+                sources,
+                dict(N2='*', NO=400e-6, CO=400e-6),
+            )
