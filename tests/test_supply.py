@@ -33,14 +33,14 @@ class TestUnifyMixtureValue:
             unify_mixture_value('0,678')
 
     def test_with_pint_quantity(self):
-        mfclib.register_pint_fractions()
+        mfclib.register_pint()
         assert unify_mixture_value(
             pint.Quantity('2.0%')) == pytest.approx(0.02)
         assert unify_mixture_value(
             pint.Quantity('235.1ppm')) == pytest.approx(0.0002351)
 
     def test_with_pint_str(self):
-        mfclib.register_pint_fractions()
+        mfclib.register_pint()
         assert unify_mixture_value('2.0%') == pytest.approx(0.02)
         assert unify_mixture_value('2.0pct') == pytest.approx(0.02)
         assert unify_mixture_value('2.0percent') == pytest.approx(0.02)
@@ -109,12 +109,12 @@ class TestSupply:
             Supply('some gas', dict(Ar=0.8, O2=0.15, H2=0.2))
 
     def test_from_kws(self):
-        mfc = Supply.from_components('carrier', N2=0.79, O2=0.21)
+        mfc = Supply.from_kws(N2=0.79, O2=0.21, name='carrier')
         assert mfc.name == 'carrier'
         assert mfc.feed == dict(N2=0.79, O2=0.21)
 
     def test_conversion_factor(self):
-        mfc = Supply.from_components('carrier', N2=0.79, O2=0.21)
+        mfc = Supply.from_kws(N2=0.79, O2=0.21)
         assert mfc.feed.cf == pytest.approx(0.9974, abs=0.0001)
 
 
@@ -122,22 +122,19 @@ class TestProportionsForMixture:
 
     def test_single_supply(self):
         x = supply_proportions_for_mixture(
-            [Supply.from_components('carrier', N2='*')],
+            [Supply.from_kws(name='carrier', N2='*')],
             Mixture.from_kws(N2=1.0),
         )
         assert x == pytest.approx([1.0])
 
     def test_complex_sources(self):
         sources = [
-            Supply('carrier', feed=dict(Ar=1.0)),
-            Supply('100% O2', feed=dict(O2=1.0)),
-            Supply('10% CO in Ar', feed=dict(CO=0.1492, Ar='*')),
-            Supply('3000ppm NO in Ar', feed=dict(NO=0.002959, Ar='*')),
-            Supply.from_components('100% H2', H2='*'),
-            Supply.from_components('1% NO2 in Ar',
-                                   NO2=0.01072,
-                                   N2O=0.0,
-                                   Ar='*'),
+            Supply.from_kws(Ar=1.0),
+            Supply.from_kws(O2=1.0),
+            Supply.from_kws(CO=0.1492, Ar='*'),
+            Supply.from_kws(NO=0.002959, Ar='*'),
+            Supply.from_kws(H2='*'),
+            Supply.from_kws(NO2=0.01072, N2O=0.0, Ar='*'),
         ]
 
         x = supply_proportions_for_mixture(
@@ -164,15 +161,12 @@ class TestProportionsForMixture:
 
     def test_warn_on_invalid_sum(self):
         sources = [
-            Supply('carrier', feed=dict(Ar=1.0)),
-            Supply('100% O2', feed=dict(O2=1.0)),
-            Supply('10% CO in Ar', feed=dict(CO=0.1492, Ar='*')),
-            Supply('3000ppm NO in Ar', feed=dict(NO=0.002959, Ar='*')),
-            Supply.from_components('100% H2', H2='*'),
-            Supply.from_components('1% NO2 in Ar',
-                                   NO2=0.01072,
-                                   N2O=0.0,
-                                   Ar='*'),
+            Supply.from_kws(Ar=1.0),
+            Supply.from_kws(O2=1.0),
+            Supply.from_kws(CO=0.1492, Ar='*'),
+            Supply.from_kws(NO=0.002959, Ar='*'),
+            Supply.from_kws(H2='*'),
+            Supply.from_kws(NO2=0.01072, N2O=0.0, Ar='*'),
         ]
 
         with pytest.warns(UserWarning,
