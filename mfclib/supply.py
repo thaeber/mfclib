@@ -138,7 +138,7 @@ class MutableMixture(Mixture, MutableMapping):
     def __delitem__(self, key):
         del self._composition[key]
 
-    def setdefault(self, key: str, default: float = 0.0):
+    def setdefault(self, key: str, default: float = 0.0):  # type: ignore
         if key in self:
             return self[key]
         else:
