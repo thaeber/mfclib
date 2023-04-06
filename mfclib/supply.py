@@ -23,23 +23,6 @@ def valfilter(predicate: Callable[[V], T], mappable: Mapping[K, V]):
     return {key: value for key, value in mappable.items() if predicate(value)}
 
 
-# def unify_mixture_value(value: Any):
-#     converters: List[Callable[[Any], float]] = [
-#         float,
-#         lambda x: pint.Quantity(x).to('dimensionless').magnitude,
-#     ]
-
-#     # loop over converters and return first value where conversion succeeds
-#     for converter in converters:
-#         try:
-#             return converter(value)
-#         except:
-#             pass
-
-#     # if we are here, no converter worked, so raise an exception
-#     raise ValueError(f'Could not convert {value} to a number.')
-
-
 def unify_mixture_value(value: Any):
     if ureg := _pint._unit_registry:
         converted = ureg.Quantity(value)

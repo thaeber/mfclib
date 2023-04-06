@@ -104,9 +104,6 @@ def flowmix(gases_file, mixture_composition, flow, temperature):
     for source, Vdot in zip(sources, flow_rates):
         for name, x in source.feed.items():
             is_mixture[name] += x * Vdot / total_flow_rate
-    # for name in species:
-    #     if name in mixture:
-    #         is_mixture[name] = is_mixture[name].to(mixture[name].units)
 
     # output
     console = Console()

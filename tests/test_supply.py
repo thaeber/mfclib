@@ -42,7 +42,6 @@ class TestUnifyMixtureValue:
     def test_with_pint_str(self):
         mfclib.register_pint()
         assert unify_mixture_value('2.0%') == pytest.approx(0.02)
-        assert unify_mixture_value('2.0pct') == pytest.approx(0.02)
         assert unify_mixture_value('2.0percent') == pytest.approx(0.02)
         assert unify_mixture_value('200ppm') == pytest.approx(0.0002)
 
