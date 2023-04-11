@@ -68,9 +68,20 @@ def format_final_value(value, soll_value):
 @cli.command(context_settings=dict(ignore_unknown_options=True))
 @click.argument("gases_file", type=click.File("rb"))
 @click.argument("mixture_composition", nargs=-1, type=str)
-@click.option("--flow", default=1.0, type=str)
-@click.option("-T", "--temperature", default="293K", type=str)
+@click.option("--flow", default="1.0L/min", show_default=True, type=str, help='Target flow rate of final mixture.')
+@click.option("-T", "--temperature", default="293K", show_default=True, type=str, help='Temperature of mixed flow.')
 def flowmix(gases_file, mixture_composition, flow, temperature):
+    """
+    Calculate flow rates of source gases to obtain a given gas mixture. GASES_FILE contains
+    the composition of source gases in TOML format and MIXTURE_COMPOSITION defines the
+    target mixture.
+
+    Example:
+
+    \b
+    mfc flowmix methane_oxidation.toml --flow 2.0L/min -T 20°C CH4=3200ppm O2=10% N2=*
+    
+    """
     # setup
     sources = [mfclib.Supply.from_kws(**gas) for gas in tomli.load(gases_file)["gases"]]
     total_flow_rate = unify_flow_rate(flow)
@@ -154,6 +165,33 @@ def flowmix(gases_file, mixture_composition, flow, temperature):
         format_final_value(sum(is_mixture.mole_fractions), mixture_total),
     )
     console.print(table)
+
+
+@cli.command(context_settings=dict(ignore_unknown_options=True))
+@click.argument("mixture_composition", nargs=-1, type=str)
+def cf(mixture_composition):
+    """
+    Calculate conversion factor (CF) for a given gas mixture. The conversion
+    factor always refers to a temperature of 273K (0°C) and can be used
+    to calculate the flow rate of a MFC if it has been calibrated with a
+    different gas (mixture).
+
+    Example:
+
+    \b
+    mfc cf CH4=3200ppm O2=10% N2=*
+    
+    """
+    # setup
+    console = Console()
+    mixture = parse_mixture_args(mixture_composition)
+
+     # output
+    console.rule()
+    console.print(f"Calculating conversion factor for: {mixture}")
+    console.print(f'Conversion factor (CF): {mixture.cf:.4g}', style='bold')
+    console.rule()
+
 
 
 if __name__ == "__main__":
