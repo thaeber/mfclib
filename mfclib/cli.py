@@ -1,16 +1,18 @@
 import re
-from typing import Any, Callable, List
 import warnings
+from pathlib import Path
+from typing import Any, Callable, List
 
 import click
 import pint
+import rich.traceback
 import tomli
 import xarray as xr
 from rich import print
 from rich.console import Console
-from rich.table import Table
 from rich.syntax import Syntax
-import rich.traceback
+from rich.table import Table
+from rich import box
 
 import mfclib
 
@@ -68,9 +70,24 @@ def format_final_value(value, soll_value):
 @cli.command(context_settings=dict(ignore_unknown_options=True))
 @click.argument("gases_file", type=click.File("rb"))
 @click.argument("mixture_composition", nargs=-1, type=str)
-@click.option("--flow", default="1.0L/min", show_default=True, type=str, help='Target flow rate of final mixture.')
-@click.option("-T", "--temperature", default="293K", show_default=True, type=str, help='Temperature of mixed flow.')
-def flowmix(gases_file, mixture_composition, flow, temperature):
+@click.option(
+    "--flow",
+    default="1.0L/min",
+    show_default=True,
+    type=str,
+    help="Target flow rate of final mixture.",
+)
+@click.option(
+    "-T",
+    "--temperature",
+    default="293K",
+    show_default=True,
+    type=str,
+    help="Temperature of mixed flow.",
+)
+@click.option("-o", "--output", type=Path)
+@click.option("--markdown", is_flag=True)
+def flowmix(gases_file, mixture_composition, flow, temperature, output, markdown):
     """
     Calculate flow rates of source gases to obtain a given gas mixture. GASES_FILE contains
     the composition of source gases in TOML format and MIXTURE_COMPOSITION defines the
@@ -80,9 +97,10 @@ def flowmix(gases_file, mixture_composition, flow, temperature):
 
     \b
     mfc flowmix methane_oxidation.toml --flow 2.0L/min -T 20°C CH4=3200ppm O2=10% N2=*
-    
+
     """
     # setup
+    console = Console(record=True)
     sources = [mfclib.Supply.from_kws(**gas) for gas in tomli.load(gases_file)["gases"]]
     total_flow_rate = unify_flow_rate(flow)
     temperature = ureg.Quantity(temperature)
@@ -117,12 +135,15 @@ def flowmix(gases_file, mixture_composition, flow, temperature):
             is_mixture[name] += x * Vdot / total_flow_rate
 
     # output
-    console = Console()
     console.print(f"Calculating volumetric flow rates for: {mixture}")
 
     # flow rates table
     table = Table(
-        show_header=True, header_style="bold", show_footer=True, row_styles=["dim", ""]
+        show_header=True,
+        header_style="bold",
+        show_footer=True,
+        row_styles=["dim", ""],
+        box=box.MARKDOWN if markdown else box.HEAVY_HEAD,
     )
     table.add_column("gas")
     table.add_column("composition")
@@ -146,7 +167,11 @@ def flowmix(gases_file, mixture_composition, flow, temperature):
     console.print(table)
 
     # mixture composition table
-    table = Table(show_header=True, row_styles=["dim", ""])
+    table = Table(
+        show_header=True,
+        row_styles=["dim", ""],
+        box=box.MARKDOWN if markdown else box.HEAVY_HEAD,
+    )
     table.add_column("")
     for name in species:
         table.add_column(name, justify="right")
@@ -166,6 +191,9 @@ def flowmix(gases_file, mixture_composition, flow, temperature):
     )
     console.print(table)
 
+    if output:
+        console.save_text(output)
+
 
 @cli.command(context_settings=dict(ignore_unknown_options=True))
 @click.argument("mixture_composition", nargs=-1, type=str)
@@ -180,18 +208,17 @@ def cf(mixture_composition):
 
     \b
     mfc cf CH4=3200ppm O2=10% N2=*
-    
+
     """
     # setup
     console = Console()
     mixture = parse_mixture_args(mixture_composition)
 
-     # output
+    # output
     console.rule()
     console.print(f"Calculating conversion factor for: {mixture}")
-    console.print(f'Conversion factor (CF): {mixture.cf:.4g}', style='bold')
+    console.print(f"Conversion factor (CF): {mixture.cf:.4g}", style="bold")
     console.rule()
-
 
 
 if __name__ == "__main__":

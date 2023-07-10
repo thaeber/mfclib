@@ -15,15 +15,15 @@ V = TypeVar("V")
 T = TypeVar("T")
 
 
-def valmap(func: Callable[[V], T], mappable: Mapping[K, V]):
+def valmap(func: Callable[[V], T], mappable: Mapping[K, V]) -> dict[K, T]:
     return {key: func(value) for key, value in mappable.items()}
 
 
-def valfilter(predicate: Callable[[V], T], mappable: Mapping[K, V]):
+def valfilter(predicate: Callable[[V], T], mappable: Mapping[K, V]) -> dict[K, V]:
     return {key: value for key, value in mappable.items() if predicate(value)}
 
 
-def unify_mixture_value(value: Any):
+def convert_mixture_value(value: Any):
     if ureg := _pint._unit_registry:
         converted = ureg.Quantity(value)
         # check that value is dimensionless
@@ -36,7 +36,7 @@ def unify_mixture_value(value: Any):
     return converted
 
 
-def unify_mixture(feed: Mapping[str, Any], balance=True):
+def convert_mixture(feed: Mapping[str, Any], balance=True):
     balance_indicator = "*"
     balance_with: str | None = None
     _feed = valmap(lambda x: x, feed)
@@ -55,7 +55,7 @@ def unify_mixture(feed: Mapping[str, Any], balance=True):
                 raise ValueError("Only one species may be marked as balance species.")
 
     # convert feed values
-    converted = valmap(unify_mixture_value, _feed)
+    converted = valmap(convert_mixture_value, _feed)
 
     # add balance species
     if balance_with:
@@ -69,7 +69,7 @@ def unify_mixture(feed: Mapping[str, Any], balance=True):
 
 class Mixture(collections.abc.Mapping):
     def __init__(self, composition: Mapping[str, Any]):
-        self._composition = unify_mixture(composition)
+        self._composition = convert_mixture(composition)
 
     @classmethod
     def from_kws(cls, **components: Any):
@@ -110,12 +110,12 @@ class Mixture(collections.abc.Mapping):
         if key in self._composition:
             return self._composition[key]
         else:
-            return unify_mixture_value(default)
+            return convert_mixture_value(default)
 
 
 class MutableMixture(Mixture, MutableMapping):
     def __setitem__(self, key, value):
-        self._composition[key] = unify_mixture_value(value)
+        self._composition[key] = convert_mixture_value(value)
         return self._composition[key]
 
     def __delitem__(self, key):
@@ -125,7 +125,7 @@ class MutableMixture(Mixture, MutableMapping):
         if key in self:
             return self[key]
         else:
-            self[key] = unify_mixture_value(default)
+            self[key] = convert_mixture_value(default)
             return self[key]
 
 

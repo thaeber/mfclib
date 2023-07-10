@@ -7,8 +7,8 @@ from .supply import (
     MutableMixture,
     Supply,
     supply_proportions_for_mixture,
-    unify_mixture,
-    unify_mixture_value,
+    convert_mixture,
+    convert_mixture_value,
 )
 
 __version__ = "0.1.0"
