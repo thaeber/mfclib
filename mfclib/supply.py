@@ -1,12 +1,11 @@
 import collections
 import warnings
-from typing import Any, Callable, Dict, Iterable, List, Mapping, MutableMapping, TypeVar
+from typing import Any, Callable, Iterable, Mapping, MutableMapping, TypeVar
 
 import numpy as np
 import scipy.optimize
 from attrs import field, frozen
 from numpy.typing import NDArray
-import pint
 from .cf import calculate_CF
 from . import _pint
 
