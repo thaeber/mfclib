@@ -1,24 +1,21 @@
 import re
 import warnings
 from pathlib import Path
-from typing import Any, Callable, List
+from typing import Any, List
 
 import click
 import pint
-import rich.traceback
 import tomli
-import xarray as xr
-from rich import print
+from rich import box, print
 from rich.console import Console
-from rich.syntax import Syntax
 from rich.table import Table
-from rich import box
 
 import mfclib
 
 warnings.filterwarnings("ignore")
 ureg = mfclib.register_pint()
-ureg.default_format = ".4g~P"
+assert ureg is not None
+ureg.default_format = '.4g~P'
 ureg.autoconvert_offset_to_baseunit = True
 
 
@@ -34,15 +31,15 @@ def cli():
     pass
 
 
-def unify_flow_rate(flow: Any):
+def parse_quantity(ctx, param, value):
     try:
-        return pint.Quantity(flow)
+        return ureg.Quantity(value)
     except ValueError:
-        raise ValueError(f"Could not convert {flow} to a number.")
+        raise ValueError(f"Could not convert {value} to a number or quantity.")
 
 
 def parse_mixture_args(args: List[str]):
-    regex = re.compile("(.*)\s*[=:]\s*(.*)")
+    regex = re.compile(r"(.*)\s*[=:]\s*(.*)")
     mixture = {}
     for arg in args:
         match = regex.match(arg)
@@ -74,7 +71,7 @@ def format_final_value(value, soll_value):
     "--flow",
     default="1.0L/min",
     show_default=True,
-    type=str,
+    callback=parse_quantity,
     help="Target flow rate of final mixture.",
 )
 @click.option(
@@ -82,7 +79,7 @@ def format_final_value(value, soll_value):
     "--temperature",
     default="293K",
     show_default=True,
-    type=str,
+    callback=parse_quantity,
     help="Temperature of mixed flow.",
 )
 @click.option("-o", "--output", type=Path)
@@ -102,15 +99,11 @@ def flowmix(gases_file, mixture_composition, flow, temperature, output, markdown
     # setup
     console = Console(record=True)
     sources = [mfclib.Supply.from_kws(**gas) for gas in tomli.load(gases_file)["gases"]]
-    total_flow_rate = unify_flow_rate(flow)
-    temperature = ureg.Quantity(temperature)
     mixture = parse_mixture_args(mixture_composition)
     mixture_total = sum(mixture.mole_fractions).to("dimensionless")
 
     # check dimensionality of flow rate
-    if not (
-        total_flow_rate.check("[]") or total_flow_rate.check("[length]**3 / [time]")
-    ):
+    if not (flow.check("[]") or flow.check("[length]**3 / [time]")):
         raise ValueError(
             "`flow` must be dimensionless or have units of volumetric flow rate \[volume/time]."
         )
@@ -123,7 +116,7 @@ def flowmix(gases_file, mixture_composition, flow, temperature, output, markdown
 
     # solve for flow rates
     flow_rates = mfclib.supply_proportions_for_mixture(sources, mixture)
-    flow_rates *= total_flow_rate
+    flow_rates *= flow
 
     T_ratio = ureg.Quantity("273.15K") / temperature
     std_flow_rates = flow_rates * T_ratio
@@ -132,7 +125,7 @@ def flowmix(gases_file, mixture_composition, flow, temperature, output, markdown
     is_mixture = mfclib.MutableMixture({name: 0.0 for name in species})
     for source, Vdot in zip(sources, flow_rates):
         for name, x in source.feed.items():
-            is_mixture[name] += x * Vdot / total_flow_rate
+            is_mixture[name] += x * Vdot / flow
 
     # output
     console.print(f"Calculating volumetric flow rates for: {mixture}")
@@ -149,7 +142,7 @@ def flowmix(gases_file, mixture_composition, flow, temperature, output, markdown
     table.add_column("composition")
     table.add_column(
         f"flow rate @ {temperature}",
-        footer=format_final_value(sum(flow_rates), total_flow_rate),
+        footer=format_final_value(sum(flow_rates), flow),
         justify="right",
     )
     table.add_column(
