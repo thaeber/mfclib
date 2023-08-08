@@ -1,6 +1,6 @@
 import warnings
 
-from ._pint import quantity, register_pint
+from ._pint import register_units, configure_unit_registry
 from .cf import calculate_CF, get_CF_table
 from .supply import (
     Mixture,

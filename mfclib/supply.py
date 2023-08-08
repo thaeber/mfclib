@@ -1,74 +1,95 @@
 import collections
+import collections.abc
 import warnings
-from typing import Any, Callable, Iterable, Mapping, MutableMapping, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    TypeVar,
+)
 
 import numpy as np
+import pint
 import scipy.optimize
 from attrs import field, frozen
 from numpy.typing import NDArray
+
 from .cf import calculate_CF
-from . import _pint
+from ._pint import get_unit_registry
 
 K = TypeVar("K")
 V = TypeVar("V")
 T = TypeVar("T")
 
 
-def valmap(func: Callable[[V], T], mappable: Mapping[K, V]) -> dict[K, T]:
+def _valmap(func: Callable[[V], T], mappable: Mapping[K, V]) -> dict[K, T]:
     return {key: func(value) for key, value in mappable.items()}
 
 
-def valfilter(predicate: Callable[[V], T], mappable: Mapping[K, V]) -> dict[K, V]:
-    return {key: value for key, value in mappable.items() if predicate(value)}
-
-
-def convert_mixture_value(value: Any):
-    if ureg := _pint._unit_registry:
+def convert_mixture_value(value: Any, ureg: None | pint.UnitRegistry = None):
+    if ureg:
         converted = ureg.Quantity(value)
         # check that value is dimensionless
         if not converted.check("[]"):
             raise ValueError(
                 f"`{converted:~P}` is not dimensionless, but has dimensions of `{converted.units:P}`"
             )
+        return converted
     else:
-        converted = float(value)
-    return converted
+        return float(value)
 
 
-def convert_mixture(feed: Mapping[str, Any], balance=True):
+def _get_balance_species(feed: Mapping[str, Any]):
+    balance_indicator = '*'
+    balance_species = [key for key, value in feed.items() if value == balance_indicator]
+
+    # ensure there is at most one species marked for balance
+    match balance_species:
+        case [symbol]:
+            return symbol
+        case []:
+            return None
+        case _:
+            raise ValueError("Only one species may be marked as balance species.")
+
+
+def convert_mixture(feed: Mapping[str, Any], ureg: None | pint.UnitRegistry = None):
     balance_indicator = "*"
     balance_with: str | None = None
-    _feed = valmap(lambda x: x, feed)
-    if balance:
-        # ensure there is at most one species marked for balance
-        balance_species = [
-            key for key, value in _feed.items() if value == balance_indicator
-        ]
-        match balance_species:
-            case [symbol]:
-                balance_with = symbol
-                del _feed[symbol]
-            case []:
-                pass
-            case _:
-                raise ValueError("Only one species may be marked as balance species.")
+
+    # make a copy so that we do not accidentally change the reference
+    # or in case `feed` is a generator
+    _feed = _valmap(lambda x: x, feed)
+
+    balance_with = _get_balance_species(_feed)
 
     # convert feed values
-    converted = valmap(convert_mixture_value, _feed)
+    converted = {
+        key: convert_mixture_value(value, ureg=ureg)
+        for key, value in _feed.items()
+        if key != balance_with
+    }
 
-    # add balance species
+    # get sum of mole fractions
+    total = sum(converted.values(), start=0.0)
+    if total > 1.0:
+        raise ValueError(f"Sum of feed mole fractions is greater than one: {feed}")
+
+    # add back balance species
     if balance_with:
-        total = sum(converted.values(), start=0.0)
-        if total > 1.0:
-            raise ValueError(f"Sum of feed mole fractions is greater than one: {feed}")
-        converted[balance_with] = 1.0 - total
+        converted[balance_with] = 1.0 - total  # type: ignore
 
     return converted
 
 
 class Mixture(collections.abc.Mapping):
-    def __init__(self, composition: Mapping[str, Any]):
-        self._composition = convert_mixture(composition)
+    def __init__(
+        self, composition: Mapping[str, Any], ureg: None | pint.UnitRegistry = None
+    ):
+        self._composition = convert_mixture(composition, ureg=get_unit_registry(ureg))
+        self._name: None | str = None
 
     @classmethod
     def from_kws(cls, **components: Any):
@@ -90,6 +111,17 @@ class Mixture(collections.abc.Mapping):
     def cf(self):
         """Calculates the thermal MFC conversion factor for the mixture composition."""
         return calculate_CF(self)
+
+    @property
+    def name(self):
+        if self._name:
+            return self._name
+        else:
+            return "|".join(self._composition.keys())
+
+    def set_name(self, name: str):
+        self._name = name
+        return self
 
     def __getitem__(self, key):
         return self._composition[key]
@@ -133,14 +165,14 @@ class Supply:
     name: str = field()
     feed: Mixture = field(factory=Mixture.from_kws, converter=Mixture)
 
-    @name.validator
+    @name.validator  # type: ignore
     def _validate_name(self, attribute, value: str):
         if not isinstance(value, str):
             raise TypeError("`name` must be of type `str`.")
         elif value == "":
             raise ValueError("`name` cannot be empty.")
 
-    @feed.validator
+    @feed.validator  # type: ignore
     def _validate_feed_composition(self, attribute, value: Mixture):
         total = sum(value.values(), start=0.0)
         if abs(total - 1.0) > 1e-6:
@@ -149,14 +181,6 @@ class Supply:
                 total = {total} for feed = {value}
                 """
             )
-
-    # @classmethod
-    # def from_components(cls, name: str, **feed: Any):
-    #     return Supply(name, feed=feed)
-
-    # @classmethod
-    # def from_dict(cls, name: str, components: Mapping[str, Any]):
-    #     return Supply(name, components)
 
     @classmethod
     def from_kws(cls, name: str | None = None, **feed: Any):

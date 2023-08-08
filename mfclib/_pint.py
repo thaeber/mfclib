@@ -1,15 +1,24 @@
 import warnings
 
 import pint
-
-_unit_registry: pint.UnitRegistry | None = None
-Quantity: pint.Quantity | None = None
+from . import _config
 
 
-def register_pint(registry: pint.UnitRegistry | None = None):
-    if registry is None:
-        registry = pint.application_registry.get()
+def register_units(registry: pint.UnitRegistry):
+    """
+    Registers specialized dimensionless units in the provided unit registry.
+    Also adds a preprocessor directive to enable usage of `%` as unit for
+    percent values.
 
+    Added units:
+        'fraction = [] = frac',
+        'percent = 1e-2 frac = %',
+        'ppm = 1e-6 fraction',
+        'ppb = 1e-9 fraction',
+
+    Args:
+        registry (pint.UnitRegistry): The pint unit registry.
+    """
     # add preprocessor to use '%' in definitions
     registry.preprocessors.append(lambda s: s.replace('%', ' percent '))
 
@@ -26,18 +35,20 @@ def register_pint(registry: pint.UnitRegistry | None = None):
         except pint.errors.RedefinitionError:
             warnings.warn(f'Fractional unit already defined.\n{unit_def}')
 
-    # set global unit registry for use in package
-    global _unit_registry
-    _unit_registry = registry
-    global Quantity
-    Quantity = registry.Quantity
-
     return registry
 
 
-def quantity() -> pint.Quantity:
-    global _unit_registry
-    if _unit_registry is not None:
-        return _unit_registry.Quantity
+def configure_unit_registry(registry: pint.UnitRegistry):
+    _config._configuration[_config.UNIT_REGISTRY_KEY] = registry
+    return registry
+
+
+def get_unit_registry(
+    registry: None | pint.UnitRegistry = None,
+) -> pint.UnitRegistry | None:
+    if registry:
+        return registry
+    elif _config.UNIT_REGISTRY_KEY in _config._configuration:
+        return _config._configuration[_config.UNIT_REGISTRY_KEY]
     else:
-        return register_pint().Quantity
+        return None

@@ -6,7 +6,7 @@ from mfclib.supply import convert_mixture, convert_mixture_value
 import pint
 
 
-class TestUnifyMixtureValue:
+class TestConvertMixtureValue:
     def test_with_float(self):
         assert convert_mixture_value(0.9) == 0.9
 
@@ -32,17 +32,19 @@ class TestUnifyMixtureValue:
             convert_mixture_value('0,678')
 
     def test_with_pint_quantity(self):
-        mfclib.register_pint()
+        ureg = mfclib.register_units(pint.UnitRegistry())
+
         assert convert_mixture_value(pint.Quantity('2.0%')) == pytest.approx(0.02)
         assert convert_mixture_value(pint.Quantity('235.1ppm')) == pytest.approx(
             0.0002351
         )
 
     def test_with_pint_str(self):
-        mfclib.register_pint()
-        assert convert_mixture_value('2.0%') == pytest.approx(0.02)
-        assert convert_mixture_value('2.0percent') == pytest.approx(0.02)
-        assert convert_mixture_value('200ppm') == pytest.approx(0.0002)
+        ureg = mfclib.register_units(pint.UnitRegistry())
+
+        assert convert_mixture_value('2.0%', ureg) == pytest.approx(0.02)
+        assert convert_mixture_value('2.0percent', ureg) == pytest.approx(0.02)
+        assert convert_mixture_value('200ppm', ureg) == pytest.approx(0.0002)
 
 
 class TestUnifyMixture:
@@ -57,8 +59,8 @@ class TestUnifyMixture:
     def test_with_mixed_types(self):
         # this might not be meaningful at all, because the mixture fraction should
         # not be greater than 1
-        feed = convert_mixture(dict(Ar=0.9, O2="0.1", NO=2))
-        assert feed == dict(Ar=0.9, O2=0.1, NO=2)
+        feed = convert_mixture(dict(Ar=0.7, O2="0.1", NO=0.2))
+        assert feed == dict(Ar=0.7, O2=0.1, NO=0.2)
 
     def test_balance_feed(self):
         feed = convert_mixture(dict(NO=0.003, Ar='*', CO=0.005))
@@ -75,6 +77,12 @@ class TestUnifyMixture:
     def test_fails_on_multiple_balance_species(self):
         with pytest.raises(ValueError):
             convert_mixture(dict(Ar='*', N2='*', NO=0.003))
+
+    def test_with_pint_str(self):
+        ureg = mfclib.register_units(pint.UnitRegistry())
+        feed = convert_mixture(dict(Ar='*', NO='3000ppm'), ureg)
+        assert feed == dict(Ar=ureg.Quantity(0.997), NO=ureg.Quantity(3000.0, 'ppm'))
+        assert feed == dict(Ar=0.997, NO=0.003)
 
 
 class TestSupply:
@@ -94,7 +102,7 @@ class TestSupply:
 
     def test_names_must_be_str(self):
         with pytest.raises(TypeError):
-            Supply(1.0)
+            Supply(1.0)  # type: ignore
 
     def test_synthesize_name(self):
         supply = Supply.from_kws(NO=0.003, Ar='*')
