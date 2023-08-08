@@ -41,14 +41,3 @@ def register_units(registry: pint.UnitRegistry):
 def configure_unit_registry(registry: pint.UnitRegistry):
     _config._configuration[_config.UNIT_REGISTRY_KEY] = registry
     return registry
-
-
-def get_unit_registry(
-    registry: None | pint.UnitRegistry = None,
-) -> pint.UnitRegistry | None:
-    if registry:
-        return registry
-    elif _config.UNIT_REGISTRY_KEY in _config._configuration:
-        return _config._configuration[_config.UNIT_REGISTRY_KEY]
-    else:
-        return None

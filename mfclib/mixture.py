@@ -1,4 +1,3 @@
-import collections
 import collections.abc
 import warnings
 from typing import (
@@ -6,30 +5,23 @@ from typing import (
     Callable,
     Iterable,
     Mapping,
-    MutableMapping,
     TypeVar,
 )
 
 import numpy as np
-import pint
 import scipy.optimize
 from attrs import field, frozen
 from numpy.typing import NDArray
+from typing import SupportsFloat
 
 from .cf import calculate_CF
-from ._pint import get_unit_registry
-
-K = TypeVar("K")
-V = TypeVar("V")
-T = TypeVar("T")
+from ._config import unitRegistry
 
 
-def _valmap(func: Callable[[V], T], mappable: Mapping[K, V]) -> dict[K, T]:
-    return {key: func(value) for key, value in mappable.items()}
-
-
-def convert_mixture_value(value: Any, ureg: None | pint.UnitRegistry = None):
-    if ureg:
+def _convert_value(
+    value: SupportsFloat,
+):
+    if ureg := unitRegistry():
         converted = ureg.Quantity(value)
         # check that value is dimensionless
         if not converted.check("[]"):
@@ -41,9 +33,11 @@ def convert_mixture_value(value: Any, ureg: None | pint.UnitRegistry = None):
         return float(value)
 
 
-def _get_balance_species(feed: Mapping[str, Any]):
+def _get_balance_species(feed: Mapping[str, SupportsFloat]):
     balance_indicator = '*'
-    balance_species = [key for key, value in feed.items() if value == balance_indicator]
+    balance_species = [
+        key for key, value in feed.items() if value == balance_indicator
+    ]
 
     # ensure there is at most one species marked for balance
     match balance_species:
@@ -52,30 +46,30 @@ def _get_balance_species(feed: Mapping[str, Any]):
         case []:
             return None
         case _:
-            raise ValueError("Only one species may be marked as balance species.")
+            raise ValueError(
+                "Only one species may be marked as balance species."
+            )
 
 
-def convert_mixture(feed: Mapping[str, Any], ureg: None | pint.UnitRegistry = None):
+def _balance_mixture(feed: Mapping[str, Any]):
     balance_indicator = "*"
     balance_with: str | None = None
 
-    # make a copy so that we do not accidentally change the reference
-    # or in case `feed` is a generator
-    _feed = _valmap(lambda x: x, feed)
-
-    balance_with = _get_balance_species(_feed)
+    balance_with = _get_balance_species(feed)
 
     # convert feed values
     converted = {
-        key: convert_mixture_value(value, ureg=ureg)
-        for key, value in _feed.items()
+        key: _convert_value(value)
+        for key, value in feed.items()
         if key != balance_with
     }
 
     # get sum of mole fractions
     total = sum(converted.values(), start=0.0)
     if total > 1.0:
-        raise ValueError(f"Sum of feed mole fractions is greater than one: {feed}")
+        raise ValueError(
+            f"Sum of feed mole fractions is greater than one: {feed}"
+        )
 
     # add back balance species
     if balance_with:
@@ -86,18 +80,19 @@ def convert_mixture(feed: Mapping[str, Any], ureg: None | pint.UnitRegistry = No
 
 class Mixture(collections.abc.Mapping):
     def __init__(
-        self, composition: Mapping[str, Any], ureg: None | pint.UnitRegistry = None
+        self,
+        composition: Mapping[str, SupportsFloat],
+        name: None | str = None,
     ):
-        self._composition = convert_mixture(composition, ureg=get_unit_registry(ureg))
-        self._name: None | str = None
+        if (name is None) and len(composition) > 0:
+            name = "|".join(composition.keys())
+
+        self._composition = _balance_mixture(composition)
+        self._name: str | None = name
 
     @classmethod
-    def from_kws(cls, **components: Any):
-        return Mixture(components)
-
-    @classmethod
-    def from_dict(cls, components: Mapping[str, Any]):
-        return Mixture(components)
+    def from_kws(cls, name: str | None = None, **components: SupportsFloat):
+        return Mixture(components, name=name)
 
     @property
     def species(self):
@@ -141,75 +136,69 @@ class Mixture(collections.abc.Mapping):
         if key in self._composition:
             return self._composition[key]
         else:
-            return convert_mixture_value(default)
+            return _convert_value(default)
 
 
-class MutableMixture(Mixture, MutableMapping):
-    def __setitem__(self, key, value):
-        self._composition[key] = convert_mixture_value(value)
-        return self._composition[key]
+# @frozen
+# class Supply:
+#     name: str = field()
+#     feed: Mixture = field(
+#         factory=Mixture.from_kws,
+#         converter=Mixture,
+#     )
 
-    def __delitem__(self, key):
-        del self._composition[key]
+#     @name.validator  # type: ignore
+#     def _validate_name(self, attribute, value: str):
+#         if not isinstance(value, str):
+#             raise TypeError("`name` must be of type `str`.")
+#         elif value == "":
+#             raise ValueError("`name` cannot be empty.")
 
-    def setdefault(self, key: str, default: float = 0.0):  # type: ignore
-        if key in self:
-            return self[key]
-        else:
-            self[key] = convert_mixture_value(default)
-            return self[key]
+#     @feed.validator  # type: ignore
+#     def _validate_feed_composition(self, attribute, value: Mixture):
+#         total = sum(value.values(), start=0.0)
+#         if abs(total - 1.0) > 1e-6:
+#             raise ValueError(
+#                 f"""The mole fractions in the feed composition do not add up to one:
+#                 total = {total} for feed = {value}
+#                 """
+#             )
 
+#     @classmethod
+#     def from_kws(
+#         cls,
+#         name: str | None = None,
+#         **feed: Any,
+#     ):
+#         if (name is None) and len(feed) > 0:
+#             name = "|".join(feed.keys())
+#         return Supply(name, feed)  # type: ignore
 
-@frozen
-class Supply:
-    name: str = field()
-    feed: Mixture = field(factory=Mixture.from_kws, converter=Mixture)
+#     @property
+#     def species(self):
+#         return list(self.feed.keys())
 
-    @name.validator  # type: ignore
-    def _validate_name(self, attribute, value: str):
-        if not isinstance(value, str):
-            raise TypeError("`name` must be of type `str`.")
-        elif value == "":
-            raise ValueError("`name` cannot be empty.")
+#     @property
+#     def mole_fractions(self):
+#         return list(self.feed.values())
 
-    @feed.validator  # type: ignore
-    def _validate_feed_composition(self, attribute, value: Mixture):
-        total = sum(value.values(), start=0.0)
-        if abs(total - 1.0) > 1e-6:
-            raise ValueError(
-                f"""The mole fractions in the feed composition do not add up to one:
-                total = {total} for feed = {value}
-                """
-            )
-
-    @classmethod
-    def from_kws(cls, name: str | None = None, **feed: Any):
-        if (name is None) and len(feed) > 0:
-            name = "|".join(feed.keys())
-        return Supply(name, feed)  # type: ignore
-
-    @property
-    def species(self):
-        return list(self.feed.keys())
-
-    @property
-    def mole_fractions(self):
-        return list(self.feed.values())
-
-    def equivalent_flow_rate(
-        self, flow_rate, reference_mixture: Mapping[str, Any] | None = None
-    ):
-        if reference_mixture is None:
-            _ref = Mixture.from_kws(N2=1.0)
-        elif not isinstance(reference_mixture, Mixture):
-            _ref = Mixture(reference_mixture)
-        else:
-            _ref = reference_mixture
-        return flow_rate * _ref.cf / self.feed.cf
+#     def equivalent_flow_rate(
+#         self,
+#         flow_rate,
+#         reference_mixture: Mapping[str, Any] | None = None,
+#     ):
+#         if reference_mixture is None:
+#             _ref = Mixture.from_kws(N2=1.0)
+#         elif not isinstance(reference_mixture, Mixture):
+#             _ref = Mixture(reference_mixture)
+#         else:
+#             _ref = reference_mixture
+#         return flow_rate * _ref.cf / self.feed.cf
 
 
 def supply_proportions_for_mixture(
-    sources: Iterable[Supply], mixture: Mixture | Mapping[str, Any]
+    sources: Iterable[Mixture],
+    mixture: Mixture,
 ) -> NDArray[np.float64]:
     """Performs a non-negative linear least squares fit to determine the
     contribution of each gas supply to obtaining a given gas mixture.
@@ -231,7 +220,7 @@ def supply_proportions_for_mixture(
     mixture_species = set(mixture.species)
     species_in_supply = set()
     for source in sources:
-        species_in_supply |= set(source.feed.species)
+        species_in_supply |= set(source.species)
     species = sorted(mixture_species | species_in_supply)
 
     # warn if mixture contains species that are not supplied
@@ -241,7 +230,7 @@ def supply_proportions_for_mixture(
         warnings.warn("Missing species in supply." + details)
 
     # build MFC matrix
-    A = [[source.feed.get(key, 0.0) for source in sources] for key in species]
+    A = [[source.get(key, 0.0) for source in sources] for key in species]
 
     # build target composition vector
     b = [mixture.get(key, 0.0) for key in species]
