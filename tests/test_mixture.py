@@ -40,13 +40,7 @@ class TestConvertValue:
             0.0002351
         )
 
-    def test_with_pint_str(self):
-        ureg = pipe(
-            pint.UnitRegistry(),
-            mfclib.configure_unit_registry,
-            mfclib.register_units,
-        )
-
+    def test_with_pint_str(self, unit_registry):
         assert _convert_value('2.0%') == pytest.approx(0.02)
         assert _convert_value('2.0percent') == pytest.approx(0.02)
         assert _convert_value('200ppm') == pytest.approx(0.0002)
@@ -75,20 +69,12 @@ class TestBalanceMixture:
         feed = _balance_mixture(dict(N2='*'))
         assert feed == dict(N2=1.0)
 
-    def test_balance_feed_fails_on_total(self):
-        with pytest.raises(ValueError):
-            _balance_mixture(dict(NO=1.003, Ar='*'))
-
     def test_fails_on_multiple_balance_species(self):
         with pytest.raises(ValueError):
             _balance_mixture(dict(Ar='*', N2='*', NO=0.003))
 
-    def test_with_pint_str(self):
-        ureg = pipe(
-            pint.UnitRegistry(),
-            mfclib.register_units,
-            mfclib.configure_unit_registry,
-        )
+    def test_with_pint_str(self, unit_registry):
+        ureg = unit_registry
         feed = _balance_mixture(dict(Ar='*', NO='3000ppm'))
         assert feed == dict(
             Ar=ureg.Quantity(0.997), NO=ureg.Quantity(3000.0, 'ppm')
@@ -98,31 +84,73 @@ class TestBalanceMixture:
 
 class TestMixture:
     def test_create_with_init(self):
-        mfc = Mixture(dict(N2=0.79, O2=0.21), name='carrier')
+        mfc = Mixture(composition=dict(N2=0.79, O2=0.21), name='carrier')
         assert mfc.name == 'carrier'
-        assert mfc == dict(N2=0.79, O2=0.21)
-
-    def test_create_with_balanced_feed(self):
-        mfc = Mixture(dict(N2='*', O2=0.21), name='carrier')
-        assert mfc.name == 'carrier'
-        assert mfc == dict(N2=0.79, O2=0.21)
-
-    def test_synthesize_name(self):
-        mixture = Mixture.from_kws(NO=0.003, Ar='*')
-        assert mixture.name == 'NO|Ar'
-
-    def test_invalid_feed_total(self):
-        with pytest.raises(ValueError):
-            Mixture(dict(Ar=0.8, O2=0.15, H2=0.2))
+        assert mfc.composition == dict(N2=0.79, O2=0.21)
+        assert dict(mfc) == dict(N2=0.79, O2=0.21)
 
     def test_from_kws(self):
-        mfc = Mixture.from_kws(N2=0.79, O2=0.21, name='carrier')
+        mfc = Mixture.from_kws(N2=0.79, O2=0.21)
+        assert mfc.composition == dict(N2=0.79, O2=0.21)
+        assert dict(mfc) == dict(N2=0.79, O2=0.21)
+        assert mfc.name == 'N2|O2'
+
+    def test_create_with_balanced_feed(self):
+        mfc = Mixture(composition=dict(N2='*', O2=0.21), name='carrier')
         assert mfc.name == 'carrier'
-        assert mfc == dict(N2=0.79, O2=0.21)
+        assert mfc.composition == dict(N2=0.79, O2=0.21)
+
+    def test_synthesize_name(self):
+        mixture = Mixture(composition=dict(NO=0.003, Ar='*'))
+        assert mixture.name == 'NO|Ar'
+
+        mixture = Mixture(composition=dict(Ar='*', NO=0.003))
+        assert mixture.name == 'Ar|NO'
 
     def test_conversion_factor(self):
-        mfc = Mixture.from_kws(N2=0.79, O2=0.21)
+        mfc = Mixture(composition=dict(N2=0.79, O2=0.21))
         assert mfc.cf == pytest.approx(0.9974, abs=0.0001)
+
+    def test_model_dump(self):
+        mfc = Mixture(composition=dict(N2=0.79, O2=0.21), name='air')
+        assert mfc.model_dump() == {
+            'composition': {'N2': 0.79, 'O2': 0.21},
+            'name': 'air',
+        }
+
+    def test_model_dump_with_units(self, unit_registry):
+        mfc = Mixture(composition=dict(N2=0.79, O2='21.0 %'), name='air')
+        assert mfc.model_dump() == {
+            'composition': {'N2': 0.79, 'O2': '21.0 %'},
+            'name': 'air',
+        }
+
+    def test_model_dump_roundtrip(self):
+        original = Mixture(composition=dict(N2=0.79, O2=0.21), name='air')
+        mfc = Mixture(**original.model_dump())
+        assert mfc.name == 'air'
+        assert mfc.composition == dict(N2=0.79, O2=0.21)
+        assert dict(mfc) == dict(N2=0.79, O2=0.21)
+
+    def test_model_dump_roundtrip_with_units(self, unit_registry):
+        ureg = unit_registry
+
+        original = Mixture(composition=dict(N2=0.79, O2='21%'), name='air')
+        mfc = Mixture(**original.model_dump())
+
+        assert mfc.name == 'air'
+        assert mfc.composition == dict(N2=0.79, O2=0.21)
+        assert dict(mfc) == dict(N2=0.79, O2=0.21)
+
+        assert mfc['N2'] == ureg('0.79')
+        assert isinstance(mfc['N2'], ureg.Quantity)
+        assert mfc['N2'].magnitude == 0.79
+        assert mfc['N2'].units == ureg.Unit('')
+
+        assert mfc['O2'] == ureg('21%')
+        assert isinstance(mfc['O2'], ureg.Quantity)
+        assert mfc['O2'].magnitude == 21.0
+        assert mfc['O2'].units == ureg.Unit('%')
 
 
 class TestProportionsForMixture:

@@ -39,5 +39,5 @@ def register_units(registry: pint.UnitRegistry):
 
 
 def configure_unit_registry(registry: pint.UnitRegistry):
-    _config._configuration[_config.UNIT_REGISTRY_KEY] = registry
+    _config._set_config_value(_config.UNIT_REGISTRY_KEY, registry)
     return registry
