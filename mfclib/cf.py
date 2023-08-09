@@ -32,8 +32,9 @@ def get_CF_table():
     return _CF_TABLE
 
 
-def calculate_CF(mixture: Mapping[str, float],
-                 table: pd.DataFrame | None = None):
+def calculate_CF(
+    mixture: Mapping[str, float], table: pd.DataFrame | None = None
+):
     # prepare table
     if table is None:
         # load default table
