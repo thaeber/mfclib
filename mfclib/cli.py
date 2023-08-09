@@ -9,14 +9,47 @@ import tomli
 from rich import box, print
 from rich.console import Console
 from rich.table import Table
+from toolz.curried import curry, do, pipe
 
 import mfclib
 
 warnings.filterwarnings("ignore")
-ureg = mfclib.register_pint()
+ureg = pipe(
+    pint.UnitRegistry(),
+    mfclib.register_units,
+    mfclib.configure_unit_registry,
+    do(lambda obj: setattr(obj, 'default_format', '.4g~P')),
+    do(lambda obj: setattr(obj, 'autoconvert_offset_to_baseunit', True)),
+)
 assert ureg is not None
-ureg.default_format = '.4g~P'
-ureg.autoconvert_offset_to_baseunit = True
+# ureg.default_format = '.4g~P'
+# ureg.autoconvert_offset_to_baseunit = True
+
+
+def validate_mixture(ctx, param, value):
+    parts_regex = re.compile(r'[,;/:]')
+    kv_regex = re.compile(r"(.*)=(.*)")
+    mixture = {}
+    for part in parts_regex.split(value):
+        part = part.strip()
+        match = kv_regex.match(part)
+        if match is not None:
+            key, value = match.groups()
+            mixture[key] = value
+        else:
+            message = f'"{part}" is not a valid key value pair.'
+            detail = f'Mixture argument: {arg}'
+            raise click.BadParameter('\n'.join([message, detail]))
+    return mfclib.Mixture(composition=mixture)
+
+
+def validate_quantity(ctx, param, value):
+    try:
+        return ureg.Quantity(value)
+    except ValueError:
+        raise click.BadParameter(
+            f"Could not convert {value} to a number or quantity."
+        )
 
 
 def safe_cli():
@@ -31,27 +64,8 @@ def cli():
     pass
 
 
-def parse_quantity(ctx, param, value):
-    try:
-        return ureg.Quantity(value)
-    except ValueError:
-        raise ValueError(f"Could not convert {value} to a number or quantity.")
-
-
-def parse_mixture_args(args: List[str]):
-    regex = re.compile(r"(.*)\s*[=:]\s*(.*)")
-    mixture = {}
-    for arg in args:
-        match = regex.match(arg)
-        if match is not None:
-            key, value = match.groups()
-            mixture[key] = value
-        else:
-            raise ValueError(f"{arg} is not a valid key value pair.")
-    return mfclib.Mixture(mixture)
-
-
 def format_final_value(value, soll_value):
+    print(value, soll_value)
     value = value.to(soll_value.units)
     tolerance = 1e-3
     if soll_value == 0:
@@ -64,14 +78,15 @@ def format_final_value(value, soll_value):
         return f":heavy_check_mark: [green]{value}[/green]"
 
 
-@cli.command(context_settings=dict(ignore_unknown_options=True))
+@cli.command()
 @click.argument("gases_file", type=click.File("rb"))
-@click.argument("mixture_composition", nargs=-1, type=str)
+@click.argument("mixture", type=str, callback=validate_mixture)
 @click.option(
+    "-f",
     "--flow",
     default="1.0L/min",
     show_default=True,
-    callback=parse_quantity,
+    callback=validate_quantity,
     help="Target flow rate of final mixture.",
 )
 @click.option(
@@ -79,14 +94,12 @@ def format_final_value(value, soll_value):
     "--temperature",
     default="293K",
     show_default=True,
-    callback=parse_quantity,
+    callback=validate_quantity,
     help="Temperature of mixed flow.",
 )
 @click.option("-o", "--output", type=Path)
 @click.option("--markdown", is_flag=True)
-def flowmix(
-    gases_file, mixture_composition, flow, temperature, output, markdown
-):
+def flowmix(gases_file, mixture, flow, temperature, output, markdown):
     """
     Calculate flow rates of source gases to obtain a given gas mixture. GASES_FILE contains
     the composition of source gases in TOML format and MIXTURE_COMPOSITION defines the
@@ -95,15 +108,15 @@ def flowmix(
     Example:
 
     \b
-    mfc flowmix methane_oxidation.toml --flow 2.0L/min -T 20°C CH4=3200ppm O2=10% N2=*
+    mfc flowmix --flow 2.0L/min -T 20°C methane_oxidation.toml "CH4=3200ppm,O2=10%,N2=*"
 
     """
     # setup
     console = Console(record=True)
     sources = [
-        mfclib.Supply.from_kws(**gas) for gas in tomli.load(gases_file)["gases"]
+        mfclib.Mixture.from_kws(**gas)
+        for gas in tomli.load(gases_file)["gases"]
     ]
-    mixture = parse_mixture_args(mixture_composition)
     mixture_total = sum(mixture.mole_fractions).to("dimensionless")
 
     # check dimensionality of flow rate
@@ -115,7 +128,7 @@ def flowmix(
     # list of all species
     species = set(mixture.species)
     for source in sources:
-        species |= set(source.feed.species)
+        species |= set(source.species)
     species = sorted(species)
 
     # solve for flow rates
@@ -126,13 +139,15 @@ def flowmix(
     std_flow_rates = flow_rates * T_ratio
 
     # final mixture composition
-    is_mixture = mfclib.MutableMixture({name: 0.0 for name in species})
+    is_mixture = {name: 0.0 for name in species}
     for source, Vdot in zip(sources, flow_rates):
-        for name, x in source.feed.items():
+        for name, x in source.items():
             is_mixture[name] += x * Vdot / flow
+    is_mixture = mfclib.Mixture(composition=is_mixture)
 
     # output
-    console.print(f"Calculating volumetric flow rates for: {mixture}")
+    console.print(f"Calculating volumetric flow rates for: {mixture!r}")
+    console.print(f'Target flow rate: {flow} @ {temperature}')
 
     # flow rates table
     table = Table(
@@ -156,7 +171,7 @@ def flowmix(
     for k, source in enumerate(sources):
         table.add_row(
             source.name,
-            ", ".join([f"{key}={value}" for key, value in source.feed.items()]),
+            ", ".join([f"{key}={value}" for key, value in source.items()]),
             f"{flow_rates[k]}",
             f"{std_flow_rates[k]}",
             f"{source.equivalent_flow_rate(std_flow_rates[k])}",
@@ -192,9 +207,9 @@ def flowmix(
         console.save_text(output)
 
 
-@cli.command(context_settings=dict(ignore_unknown_options=True))
-@click.argument("mixture_composition", nargs=-1, type=str)
-def cf(mixture_composition):
+@cli.command()
+@click.argument("mixture", type=str, callback=validate_mixture)
+def cf(mixture: mfclib.Mixture):
     """
     Calculate conversion factor (CF) for a given gas mixture. The conversion
     factor always refers to a temperature of 273K (0°C) and can be used
@@ -209,11 +224,10 @@ def cf(mixture_composition):
     """
     # setup
     console = Console()
-    mixture = parse_mixture_args(mixture_composition)
 
     # output
     console.rule()
-    console.print(f"Calculating conversion factor for: {mixture}")
+    console.print(f"Calculating conversion factor for: {mixture!r}")
     console.print(f"Conversion factor (CF): {mixture.cf:.4g}", style="bold")
     console.rule()
 

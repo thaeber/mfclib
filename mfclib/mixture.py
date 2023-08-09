@@ -1,6 +1,14 @@
 import collections.abc
 import warnings
-from typing import Any, Iterable, Mapping, Optional, SupportsFloat, Union
+from typing import (
+    Any,
+    Iterable,
+    Mapping,
+    Optional,
+    SupportsFloat,
+    TypeAlias,
+    Union,
+)
 
 import numpy as np
 import pint
@@ -10,6 +18,10 @@ from numpy.typing import NDArray
 
 from ._config import balance_species_indicator, unitRegistry
 from .cf import calculate_CF
+
+Mixture: TypeAlias = 'Mixture'
+MixtureMapping: TypeAlias = Mapping[str, SupportsFloat]
+MixtureType: TypeAlias = Union[Mixture, MixtureMapping]
 
 
 def _convert_value(
@@ -29,7 +41,7 @@ def _convert_value(
         return float(value)
 
 
-def _get_balance_species(feed: Mapping[str, SupportsFloat]):
+def _get_balance_species(feed: MixtureMapping):
     balance_indicator = balance_species_indicator()
     balance_species = [
         key for key, value in feed.items() if value == balance_indicator
@@ -47,7 +59,7 @@ def _get_balance_species(feed: Mapping[str, SupportsFloat]):
             raise ValueError('\n'.join([message, detail]))
 
 
-def _balance_mixture(feed: Mapping[str, Any]):
+def _balance_mixture(feed: MixtureMapping):
     balance_indicator = "*"
     balance_with: str | None = None
 
@@ -64,9 +76,16 @@ def _balance_mixture(feed: Mapping[str, Any]):
 
         # add back balance species
         if balance_with:
-            converted[balance_with] = 1.0 - total  # type: ignore
+            converted[balance_with] = 1.0 - _convert_value(total)  # type: ignore
 
     return converted
+
+
+def ensure_mixture_type(mixture: MixtureType):
+    if isinstance(mixture, Mixture):
+        return mixture
+    else:
+        Mixture(composition=mixture)
 
 
 class Mixture(pydantic.BaseModel, collections.abc.Mapping):
@@ -128,11 +147,27 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
     def __len__(self):
         return len(self.composition)
 
+    def __repr__(self) -> str:
+        comp = [f"{key}={value}" for key, value in self.composition.items()]
+        sep = ", "
+        return f"[{self.name}]({sep.join(comp)})"
+
     def get(self, key: str, default: float = 0.0):  # type: ignore
         if key in self.composition:
             return self.composition[key]
         else:
             return _convert_value(default)
+
+    def equivalent_flow_rate(
+        self,
+        flow_rate: SupportsFloat,
+        reference_mixture: Optional[MixtureType] = None,
+    ):
+        if reference_mixture is None:
+            _ref = Mixture.from_kws(N2=1.0)
+        else:
+            _ref = ensure_mixture_type(_ref)
+        return flow_rate * _ref.cf / self.cf
 
 
 def supply_proportions_for_mixture(
@@ -152,9 +187,6 @@ def supply_proportions_for_mixture(
             are given in the same order as in the `sources` parameter.
             The sum of all relative flow rates is 1.
     """
-    ensure_mixture_type = (
-        lambda M: M if isinstance(M, Mixture) else Mixture(composition=M)
-    )
     mixture = ensure_mixture_type(mixture)
     sources = [ensure_mixture_type(M) for M in sources]
 
