@@ -85,7 +85,7 @@ def ensure_mixture_type(mixture: MixtureType):
     if isinstance(mixture, Mixture):
         return mixture
     else:
-        Mixture(composition=mixture)
+        return Mixture(composition=mixture)
 
 
 class Mixture(pydantic.BaseModel, collections.abc.Mapping):
