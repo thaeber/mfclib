@@ -84,7 +84,9 @@ def format_final_value(value, soll_value):
 )
 @click.option("-o", "--output", type=Path)
 @click.option("--markdown", is_flag=True)
-def flowmix(gases_file, mixture_composition, flow, temperature, output, markdown):
+def flowmix(
+    gases_file, mixture_composition, flow, temperature, output, markdown
+):
     """
     Calculate flow rates of source gases to obtain a given gas mixture. GASES_FILE contains
     the composition of source gases in TOML format and MIXTURE_COMPOSITION defines the
@@ -98,7 +100,9 @@ def flowmix(gases_file, mixture_composition, flow, temperature, output, markdown
     """
     # setup
     console = Console(record=True)
-    sources = [mfclib.Supply.from_kws(**gas) for gas in tomli.load(gases_file)["gases"]]
+    sources = [
+        mfclib.Supply.from_kws(**gas) for gas in tomli.load(gases_file)["gases"]
+    ]
     mixture = parse_mixture_args(mixture_composition)
     mixture_total = sum(mixture.mole_fractions).to("dimensionless")
 
