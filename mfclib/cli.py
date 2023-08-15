@@ -12,6 +12,7 @@ from rich.table import Table
 from toolz.curried import curry, do, pipe
 
 import mfclib
+from ._cli_tools import validate_mixture, validate_quantity
 
 warnings.filterwarnings("ignore")
 ureg = pipe(
@@ -22,34 +23,6 @@ ureg = pipe(
     do(lambda obj: setattr(obj, 'autoconvert_offset_to_baseunit', True)),
 )
 assert ureg is not None
-# ureg.default_format = '.4g~P'
-# ureg.autoconvert_offset_to_baseunit = True
-
-
-def validate_mixture(ctx, param, value):
-    parts_regex = re.compile(r'[,;/:]')
-    kv_regex = re.compile(r"(.*)=(.*)")
-    mixture = {}
-    for part in parts_regex.split(value):
-        part = part.strip()
-        match = kv_regex.match(part)
-        if match is not None:
-            key, value = match.groups()
-            mixture[key] = value
-        else:
-            message = f'"{part}" is not a valid key value pair.'
-            detail = f'Mixture argument: {arg}'
-            raise click.BadParameter('\n'.join([message, detail]))
-    return mfclib.Mixture(composition=mixture)
-
-
-def validate_quantity(ctx, param, value):
-    try:
-        return ureg.Quantity(value)
-    except ValueError:
-        raise click.BadParameter(
-            f"Could not convert {value} to a number or quantity."
-        )
 
 
 def safe_cli():
@@ -60,8 +33,10 @@ def safe_cli():
 
 
 @click.group()
-def cli():
-    pass
+@click.pass_context
+def cli(ctx):
+    ctx.ensure_object(dict)
+    ctx.obj['gases'] = mfclib.MixtureCollection()
 
 
 def format_final_value(value, soll_value):
@@ -230,6 +205,20 @@ def cf(mixture: mfclib.Mixture):
     console.print(f"Calculating conversion factor for: {mixture!r}")
     console.print(f"Conversion factor (CF): {mixture.cf:.4g}", style="bold")
     console.rule()
+
+
+@cli.group()
+def gases():
+    """Managing available gas mixtures."""
+    pass
+
+
+@gases.command('list')
+def list_gases():
+    """List the available gas mixtures."""
+    ctx = click.get_current_context()
+    gases = ctx.obj['gases']
+    print(gases)
 
 
 if __name__ == "__main__":
