@@ -3,6 +3,8 @@ import warnings
 from typing import (
     Any,
     Iterable,
+    Iterator,
+    List,
     Mapping,
     Optional,
     SupportsFloat,
@@ -96,6 +98,7 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
     def check_name(self):
         if not self.name:
             self.name = "|".join(self.composition.keys())
+        return self
 
     @pydantic.field_validator('composition', mode='before')
     @classmethod
@@ -168,6 +171,30 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
         else:
             _ref = ensure_mixture_type(_ref)
         return flow_rate * _ref.cf / self.cf
+
+
+class MixtureCollection(
+    pydantic.BaseModel,
+    collections.abc.Iterable,
+    collections.abc.Sized,
+):
+    mixtures: List[Mixture] = pydantic.Field(default_factory=lambda: [])
+
+    def __len__(self) -> int:
+        return len(self.mixtures)
+
+    def __iter__(self) -> Iterator[Mixture]:
+        return iter(self.mixtures)
+
+    def __getitem__(self, index):
+        return self.mixtures[index]
+
+    def __delitem__(self, index):
+        del self.mixtures[index]
+
+    @pydantic.validate_call
+    def append(self, mixture: Mixture):
+        self.mixtures.append(mixture)
 
 
 def supply_proportions_for_mixture(
