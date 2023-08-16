@@ -18,7 +18,7 @@ import pydantic
 import scipy.optimize
 from numpy.typing import NDArray
 
-from .config import balance_species_indicator, unitRegistry
+from .config import balanceSpeciesIndicator, unitRegistry
 from .cf import calculate_CF
 
 Mixture: TypeAlias = 'Mixture'
@@ -29,7 +29,7 @@ MixtureType: TypeAlias = Union[Mixture, MixtureMapping]
 def _convert_value(
     value: SupportsFloat,
 ):
-    if value == balance_species_indicator():
+    if value == balanceSpeciesIndicator():
         return value
     if ureg := unitRegistry():
         converted = ureg.Quantity(value)
@@ -44,7 +44,7 @@ def _convert_value(
 
 
 def _get_balance_species(feed: MixtureMapping):
-    balance_indicator = balance_species_indicator()
+    balance_indicator = balanceSpeciesIndicator()
     balance_species = [
         key for key, value in feed.items() if value == balance_indicator
     ]

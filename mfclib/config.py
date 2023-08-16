@@ -5,12 +5,12 @@ import pint
 
 UNIT_REGISTRY_KEY = 'UNIT_REGISTRY'
 BALANCE_SPECIES_KEY = 'BALANCE_SPECIES_INDICATOR'
-GASES_FILE_KEY = 'GASES_FILE'
+SOURCE_GASES_FILE_KEY = 'GASES_FILE'
 
 __default_configuration: Dict[str, Any] = {
     BALANCE_SPECIES_KEY: '*',
     UNIT_REGISTRY_KEY: None,
-    GASES_FILE_KEY: '.mixtures.json',
+    SOURCE_GASES_FILE_KEY: '.sources.json',
 }
 _custom_configuration: Dict[str, Any] = {}
 
@@ -44,7 +44,7 @@ def reset_to_default():
     _custom_configuration.clear()
 
 
-def balance_species_indicator():
+def balanceSpeciesIndicator():
     return _get_config_value(BALANCE_SPECIES_KEY)
 
 
@@ -52,8 +52,8 @@ def unitRegistry() -> None | pint.UnitRegistry:
     return _get_config_value(UNIT_REGISTRY_KEY)
 
 
-def gasesFile():
-    return _get_config_value(GASES_FILE_KEY)
+def sourceGasesFile():
+    return _get_config_value(SOURCE_GASES_FILE_KEY)
 
 
 def register_units(registry: pint.UnitRegistry):
