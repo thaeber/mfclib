@@ -9,4 +9,4 @@ from .mixture import (
     supply_proportions_for_mixture,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mfclib"
-version = "0.1.1"
+version = "0.2.0"
 description = "A small Python module to calculate flow rates for gas mixtures."
 authors = ["Thomas Haeber <thomas.haeber@kit.edu>"]
 readme = "README.md"
