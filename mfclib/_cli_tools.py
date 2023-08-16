@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 
 import click
 
@@ -31,3 +32,7 @@ def validate_quantity(ctx, param, value):
         raise click.BadParameter(
             f"Could not convert {value} to a number or quantity."
         )
+
+
+def load_mixtures(filename: Optional[str]):
+    pass

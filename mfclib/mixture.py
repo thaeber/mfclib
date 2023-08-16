@@ -18,7 +18,7 @@ import pydantic
 import scipy.optimize
 from numpy.typing import NDArray
 
-from ._config import balance_species_indicator, unitRegistry
+from .config import balance_species_indicator, unitRegistry
 from .cf import calculate_CF
 
 Mixture: TypeAlias = 'Mixture'

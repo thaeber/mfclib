@@ -32,9 +32,7 @@ class TestConvertValue:
         with pytest.raises(ValueError):
             _convert_value('0,678')
 
-    def test_with_pint_quantity(self):
-        ureg = mfclib.register_units(pint.UnitRegistry())
-
+    def test_with_pint_quantity(self, unit_registry):
         assert _convert_value(pint.Quantity('2.0%')) == pytest.approx(0.02)
         assert _convert_value(pint.Quantity('235.1ppm')) == pytest.approx(
             0.0002351
