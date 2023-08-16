@@ -39,3 +39,16 @@ class TestMixtureCollection:
             Mixture(composition=dict(Ar='*')),
             Mixture(composition=dict(NO='5000ppm', N2='*')),
         ]
+
+    def test_clear(self, unit_registry):
+        mixtures = MixtureCollection(
+            mixtures=[
+                Mixture(composition=dict(Ar='*')),
+                Mixture(composition=dict(CH4='5%', N2='*')),
+                Mixture(composition=dict(NO='5000ppm', N2='*')),
+            ]
+        )
+        assert len(mixtures) == 3
+
+        mixtures.clear()
+        assert len(mixtures) == 0

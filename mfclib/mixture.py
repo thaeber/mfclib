@@ -196,6 +196,9 @@ class MixtureCollection(
     def append(self, mixture: Mixture):
         self.mixtures.append(mixture)
 
+    def clear(self):
+        self.mixtures.clear()
+
 
 def supply_proportions_for_mixture(
     sources: Iterable[Union[Mixture, dict[str, SupportsFloat]]],

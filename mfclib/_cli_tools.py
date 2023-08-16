@@ -1,10 +1,9 @@
 import re
-from typing import Optional
+from pathlib import Path
 
 import click
 
 import mfclib
-from mfclib._config import unitRegistry
 
 
 def validate_mixture(ctx, param, value):
@@ -26,7 +25,7 @@ def validate_mixture(ctx, param, value):
 
 def validate_quantity(ctx, param, value):
     try:
-        ureg = unitRegistry()
+        ureg = mfclib.config.unitRegistry()
         return ureg.Quantity(value)
     except ValueError:
         raise click.BadParameter(
@@ -34,5 +33,54 @@ def validate_quantity(ctx, param, value):
         )
 
 
-def load_mixtures(filename: Optional[str]):
-    pass
+def validate_flowrate(ctx, param, value):
+    value = validate_quantity(ctx, param, value)
+    if not (value.check("[]") or value.check("[length]**3 / [time]")):
+        raise click.BadParameter(
+            "Value must be dimensionless or have units of volumetric flow rate \[volume/time]."
+        )
+    return value
+
+
+def validate_temperature(ctx, param, value):
+    value = validate_quantity(ctx, param, value)
+    if not (value.check("[]") or value.check("[temperature]")):
+        raise click.BadParameter(
+            "Value must be dimensionless or have units of temperature."
+        )
+    return value
+
+
+def validate_sources_filename(ctx, param, value):
+    if value and not Path(value).exists():
+        raise click.BadParameter('The file does not exists.')
+    return value
+
+
+def load_source_gases(filename: None | str | Path = None):
+    if not filename:
+        filename = mfclib.config.sourceGasesFile()
+    filename = Path(filename)
+
+    if not filename.exists():
+        return mfclib.MixtureCollection()
+    else:
+        with open(filename) as f:
+            json = f.read()
+            return mfclib.MixtureCollection.model_validate_json(json)
+
+
+def save_source_gases(
+    gases: mfclib.MixtureCollection, filename: None | str | Path = None
+):
+    if not filename:
+        filename = mfclib.config.sourceGasesFile()
+    filename = Path(filename)
+
+    # dump mixtures as JSON
+    try:
+        json = gases.model_dump_json(indent=2)
+        with open(filename, 'w') as f:
+            f.write(json)
+    except IOError as e:
+        raise click.BadParameter(e.message, param='filename')
