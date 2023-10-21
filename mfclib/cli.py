@@ -38,10 +38,10 @@ def sources_option(f):
     @click.option(
         '-f',
         '--filename',
-        type=Optional[str],
+        type=str,
         default=None,
         callback=validate_sources_filename,
-        help='''Specifies the name (and path) of the file that contains the 
+        help='''Specifies the name (and path) of the file that contains the
        source gas mixtures. If not specified, a default file will be created
        in the current directory.
        ''',
