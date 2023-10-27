@@ -97,7 +97,7 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
     @pydantic.model_validator(mode='after')
     def check_name(self):
         if not self.name:
-            self.name = "|".join(self.composition.keys())
+            self.name = "/".join(self.composition.keys())
         return self
 
     @pydantic.field_validator('composition', mode='before')
