@@ -91,7 +91,7 @@ class TestMixture:
         mfc = Mixture.from_kws(N2=0.79, O2=0.21)
         assert mfc.composition == dict(N2=0.79, O2=0.21)
         assert dict(mfc) == dict(N2=0.79, O2=0.21)
-        assert mfc.name == 'N2|O2'
+        assert mfc.name == 'N2/O2'
 
     def test_create_with_balanced_feed(self):
         mfc = Mixture(composition=dict(N2='*', O2=0.21), name='carrier')
@@ -100,10 +100,10 @@ class TestMixture:
 
     def test_synthesize_name(self):
         mixture = Mixture(composition=dict(NO=0.003, Ar='*'))
-        assert mixture.name == 'NO|Ar'
+        assert mixture.name == 'NO/Ar'
 
         mixture = Mixture(composition=dict(Ar='*', NO=0.003))
-        assert mixture.name == 'Ar|NO'
+        assert mixture.name == 'Ar/NO'
 
     def test_conversion_factor(self):
         mfc = Mixture(composition=dict(N2=0.79, O2=0.21))

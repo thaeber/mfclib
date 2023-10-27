@@ -1,0 +1,50 @@
+{
+  "mixtures": [
+    {
+      "name": "He",
+      "composition": {
+        "He": 1.0
+      }
+    },
+    {
+      "name": "CO/He",
+      "composition": {
+        "CO": "10 %",
+        "He": 0.9
+      }
+    },
+    {
+      "name": "NO/He",
+      "composition": {
+        "NO": "4 %",
+        "He": 0.96
+      }
+    },
+    {
+      "name": "H2",
+      "composition": {
+        "H2": 1.0
+      }
+    },
+    {
+      "name": "O2/N2",
+      "composition": {
+        "O2": "21 %",
+        "N2": 0.79
+      }
+    },
+    {
+      "name": "O2/He",
+      "composition": {
+        "O2": "21 %",
+        "He": 0.79
+      }
+    },
+    {
+      "name": "N2",
+      "composition": {
+        "N2": 1.0
+      }
+    }
+  ]
+}

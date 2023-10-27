@@ -100,6 +100,13 @@ def format_final_value(value, soll_value):
     callback=validate_temperature,
     help="Temperature of mixed flow.",
 )
+@click.option(
+    "--Tref",
+    default="273K",
+    show_default=True,
+    callback=validate_temperature,
+    help="Calibration temperature of MFCs.",
+)
 @click.option("-o", "--output", type=Path)
 @click.option("--markdown", is_flag=True, default=False)
 def flowmix(mixture: mfclib.Mixture, **kws):
@@ -122,6 +129,9 @@ def flowmix(mixture: mfclib.Mixture, **kws):
     # get options
     flowrate = kws['flowrate']
     temperature = kws['temperature']
+    Tref = kws['tref']
+    print(Tref)
+    print(kws)
     emit_markdown = kws['markdown']
 
     # list of all species
@@ -134,7 +144,7 @@ def flowmix(mixture: mfclib.Mixture, **kws):
     flow_rates = mfclib.supply_proportions_for_mixture(sources, mixture)
     flow_rates *= flowrate
 
-    T_ratio = ureg.Quantity("273.15K") / temperature
+    T_ratio = Tref / temperature
     std_flow_rates = flow_rates * T_ratio
 
     # final mixture composition
@@ -164,9 +174,9 @@ def flowmix(mixture: mfclib.Mixture, **kws):
         justify="right",
     )
     table.add_column(
-        f"flow rate @ 273K", footer=f"{sum(std_flow_rates)}", justify="right"
+        f"flow rate @ {Tref}", footer=f"{sum(std_flow_rates)}", justify="right"
     )
-    table.add_column(f"N2 flow rate @ 273K", justify="right")
+    table.add_column(f"N2 flow rate @ {Tref}", justify="right")
     for k, source in enumerate(sources):
         table.add_row(
             source.name,
