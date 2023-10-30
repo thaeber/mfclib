@@ -61,12 +61,18 @@ def _get_balance_species(feed: MixtureMapping):
             raise ValueError('\n'.join([message, detail]))
 
 
+def _convert_mixture(feed: MixtureMapping):
+    # convert feed values
+    converted = {key: _convert_value(value) for key, value in feed.items()}
+    return converted
+
+
 def _balance_mixture(feed: MixtureMapping):
     balance_indicator = "*"
     balance_with: str | None = None
 
     # convert feed values
-    converted = {key: _convert_value(value) for key, value in feed.items()}
+    converted = _convert_mixture(feed)
 
     balance_with = _get_balance_species(feed)
 
@@ -200,6 +206,29 @@ class MixtureCollection(
         self.mixtures.clear()
 
 
+def _strip_unit(value):
+    try:
+        return value.to('frac').magnitude
+    except AttributeError:
+        return value
+
+
+def _solve_system(sources, mixture, species):
+    # solve system of linear equations of species with known concentrations
+    # build source matrix
+    A = [
+        [_strip_unit(source.get(key, 0.0)) for source in sources]
+        for key in species
+    ]
+
+    # build target composition vector
+    b = [_strip_unit(mixture.get(key, 0.0)) for key in species]
+
+    # solve system of linear equations
+    x: NDArray[np.float64] = scipy.optimize.nnls(A, b)[0]
+    return x
+
+
 def supply_proportions_for_mixture(
     sources: Iterable[Union[Mixture, dict[str, SupportsFloat]]],
     mixture: Union[Mixture, dict[str, SupportsFloat]],
@@ -217,30 +246,48 @@ def supply_proportions_for_mixture(
             are given in the same order as in the `sources` parameter.
             The sum of all relative flow rates is 1.
     """
-    mixture = ensure_mixture_type(mixture)
+    mixture = _convert_mixture(mixture)
     sources = [ensure_mixture_type(M) for M in sources]
 
-    # check species
-    mixture_species = set(mixture.species)
-    species_in_supply = set()
+    # get all available species in the source
+    species = set()
     for source in sources:
-        species_in_supply |= set(source.species)
-    species = sorted(mixture_species | species_in_supply)
+        species |= set(source.species)
+    species = sorted(species)
+
+    mixture_species = [name for name in mixture]
 
     # warn if mixture contains species that are not supplied
-    missing_species = mixture_species - species_in_supply
+    missing_species = set(mixture_species) - set(species)
     if missing_species:
         details = f"\nThe following species are in the mixture but not in any of the sources:\n{missing_species}"
         warnings.warn("Missing species in supply." + details)
 
-    # build MFC matrix
-    A = [[source.get(key, 0.0) for source in sources] for key in species]
+    balance_with = _get_balance_species(mixture)
 
-    # build target composition vector
-    b = [mixture.get(key, 0.0) for key in species]
+    if balance_with:
+        # exclude balance species and unspecified species
+        unknown = []
+        for name in species:
+            if (name == balance_with) or (name not in mixture):
+                unknown.append(name)
 
-    # solve system of linear equations
-    x: NDArray[np.float64] = scipy.optimize.nnls(A, b)[0]
+        # exclude balance species if present
+        x = _solve_system(
+            sources, mixture, [s for s in species if (s not in unknown)]
+        )
+
+        # calculate resulting mixture and add balance species back
+        _old = {key: mixture[key] for key in mixture}
+        mixture = {name: 0.0 for name in species}
+        for k, source in enumerate(sources):
+            for name in source:
+                mixture[name] += x[k] * _strip_unit(source[name])
+        if balance_with:
+            mixture[balance_with] = balanceSpeciesIndicator()
+
+    mixture = _balance_mixture(mixture)
+    x = _solve_system(sources, mixture, species)
 
     # check sum of proportions
     tolerance = 1.0e-4

@@ -20,7 +20,8 @@ def validate_mixture(ctx, param, value):
             message = f'"{part}" is not a valid key value pair.'
             detail = f'Mixture argument: {value}'
             raise click.BadParameter('\n'.join([message, detail]))
-    return mfclib.Mixture(composition=mixture)
+    # return mfclib.Mixture(composition=mixture)
+    return mixture
 
 
 def validate_quantity(ctx, param, value):

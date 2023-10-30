@@ -124,7 +124,7 @@ def flowmix(mixture: mfclib.Mixture, **kws):
     # setup
     console = Console(record=True)
     sources = load_source_gases(kws['filename'])
-    mixture_total = sum(mixture.mole_fractions).to("dimensionless")
+    mixture_total = 1.0  # sum(mixture.mole_fractions).to("dimensionless")
 
     # get options
     flowrate = kws['flowrate']
@@ -135,7 +135,7 @@ def flowmix(mixture: mfclib.Mixture, **kws):
     emit_markdown = kws['markdown']
 
     # list of all species
-    species = set(mixture.species)
+    species = set(mixture.keys())
     for source in sources:
         species |= set(source.species)
     species = sorted(species)
