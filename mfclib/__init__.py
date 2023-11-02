@@ -7,6 +7,7 @@ from .mixture import (
     MixtureCollection,
     # Supply,
     supply_proportions_for_mixture,
+    ensure_mixture_type,
 )
 
 __version__ = "0.2.0"

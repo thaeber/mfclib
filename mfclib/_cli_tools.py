@@ -24,6 +24,10 @@ def validate_mixture(ctx, param, value):
     return mixture
 
 
+def ensure_mixture(mixture):
+    return mfclib.ensure_mixture_type(mixture)
+
+
 def validate_quantity(ctx, param, value):
     try:
         ureg = mfclib.config.unitRegistry()

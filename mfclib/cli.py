@@ -14,6 +14,7 @@ from toolz.curried import curry, do, pipe
 
 import mfclib
 from ._cli_tools import (
+    ensure_mixture,
     validate_mixture,
     validate_quantity,
     validate_flowrate,
@@ -297,6 +298,7 @@ def add_gas(
     Add a gas mixture to the list of source gases. Mixtures are defined
     as a list of key-value pairs, e.g. "CH4=5%,N2=*" or "NO=5000ppm,N2=*".
     """
+    mixture = ensure_mixture(mixture)
     sources = load_source_gases(filename)
     if name:
         mixture.name = name
