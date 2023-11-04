@@ -89,27 +89,35 @@ def _balance_mixture(feed: MixtureMapping):
     return converted
 
 
-def ensure_mixture_type(mixture: MixtureType):
+def ensure_mixture_type(mixture: MixtureType, *, strict=True, balance=True):
     if isinstance(mixture, Mixture):
         return mixture
     else:
-        return Mixture(composition=mixture)
+        return Mixture(composition=mixture, strict=strict, balance=balance)
 
 
 class Mixture(pydantic.BaseModel, collections.abc.Mapping):
     name: Optional[str] = None
     composition: dict[str, Any]
+    strict: bool = True
+    balance: bool = True
 
     @pydantic.model_validator(mode='after')
     def check_name(self):
         if not self.name:
             self.name = "/".join(self.composition.keys())
+        try:
+            if self.balance:
+                self.composition = _balance_mixture(self.composition)
+        except ValueError as ex:
+            if self.strict:
+                raise ex
         return self
 
     @pydantic.field_validator('composition', mode='before')
     @classmethod
     def check_composition(cls, value):
-        return _balance_mixture(value)
+        return _convert_mixture(value)
 
     @pydantic.field_serializer('composition', mode='wrap')
     def serialize_composition(
@@ -288,6 +296,9 @@ def supply_proportions_for_mixture(
 
     mixture = _balance_mixture(mixture)
     x = _solve_system(sources, mixture, species)
+
+    # set very small values to zero
+    x[np.isclose(x, np.zeros_like(x))] = 0.0
 
     # check sum of proportions
     tolerance = 1.0e-4

@@ -1,27 +1,29 @@
 import functools
-import re
 import warnings
+from enum import Enum
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 import click
+import numpy as np
 import pint
-import tomli
-from rich import box, print
+import rich.traceback
+from rich import box
 from rich.console import Console
 from rich.table import Table
-from toolz.curried import curry, do, pipe
+from toolz.curried import do, pipe
 
 import mfclib
+
 from ._cli_tools import (
     ensure_mixture,
-    validate_mixture,
-    validate_quantity,
-    validate_flowrate,
-    validate_temperature,
-    validate_sources_filename,
     load_source_gases,
     save_source_gases,
+    validate_balanced_mixture,
+    validate_flowrate,
+    validate_sources_filename,
+    validate_temperature,
+    validate_unbalanced_mixture,
 )
 
 warnings.filterwarnings("ignore")
@@ -55,10 +57,12 @@ def sources_option(f):
 
 
 def safe_cli():
-    try:
-        cli()
-    except Exception as e:
-        print(f"[bold red]ERROR[/bold red]: {e}")
+    rich.traceback.install()
+    cli()
+    # try:
+    #     cli()
+    # except Exception as e:
+    #     print(f"[bold red]ERROR[/bold red]: {e}")
 
 
 @click.group()
@@ -69,21 +73,66 @@ def cli(ctx, **kws):
     pass
 
 
-def format_final_value(value, soll_value):
-    value = value.to(soll_value.units)
+class StatusFlag(Enum):
+    NONE = 1
+    OK = 2
+    WARNING = 3
+    ERROR = 4
+
+
+def _format_status(value: Any, status: StatusFlag):
+    match status:
+        case StatusFlag.NONE:
+            return f'{value}'
+        case StatusFlag.OK:
+            return f"[green1]:heavy_check_mark:[/green1] {value}"
+        case StatusFlag.WARNING:
+            return f"[orange1]:warning:[/orange1] {value}"
+        case StatusFlag.ERROR:
+            return f"[bold red1]:x:[/bold red1] {value}"
+
+
+def _format(value, reference):
+    # return f'{value}'
+    try:
+        value = value.to(reference.units)
+    except AttributeError:
+        pass
     tolerance = 1e-3
-    if soll_value == 0:
-        check = abs(value) < tolerance
+    if isinstance(reference, str):
+        return _format_status(value, StatusFlag.NONE)
+    elif reference is None:
+        return _format_status(
+            value,
+            StatusFlag.OK if np.isclose(value, 0.0) else StatusFlag.WARNING,
+        )
+    elif reference == 0:
+        return _format_status(
+            value, StatusFlag.OK if abs(value) < tolerance else StatusFlag.ERROR
+        )
     else:
-        check = abs(1.0 - value / soll_value) < tolerance
-    if not check:
-        return f":x: [bold red]{value}[/bold red]"
-    else:
-        return f":heavy_check_mark: [green]{value}[/green]"
+        return _format_status(
+            value,
+            StatusFlag.OK
+            if abs(1.0 - value / reference) < tolerance
+            else StatusFlag.ERROR,
+        )
+
+
+def mix_sources(sources, fractions):
+    mixture = {}
+    for source, phi in zip(sources, fractions):
+        for name, x in source.items():
+            if name not in mixture:
+                mixture[name] = x * phi
+            else:
+                mixture[name] += x * phi
+    mixture = ensure_mixture(mixture)
+    return mixture
 
 
 @cli.command('mix')
-@click.argument("mixture", type=str, callback=validate_mixture)
+@click.argument("mixture", type=str, callback=validate_unbalanced_mixture)
 @sources_option
 @click.option(
     "-V",
@@ -131,8 +180,6 @@ def flowmix(mixture: mfclib.Mixture, **kws):
     flowrate = kws['flowrate']
     temperature = kws['temperature']
     Tref = kws['tref']
-    print(Tref)
-    print(kws)
     emit_markdown = kws['markdown']
 
     # list of all species
@@ -142,18 +189,15 @@ def flowmix(mixture: mfclib.Mixture, **kws):
     species = sorted(species)
 
     # solve for flow rates
-    flow_rates = mfclib.supply_proportions_for_mixture(sources, mixture)
-    flow_rates *= flowrate
+    source_fractions = mfclib.supply_proportions_for_mixture(sources, mixture)
 
+    # source flow rates at target and reference temperature
     T_ratio = Tref / temperature
+    flow_rates = source_fractions * flowrate
     std_flow_rates = flow_rates * T_ratio
 
     # final mixture composition
-    is_mixture = {name: 0.0 for name in species}
-    for source, Vdot in zip(sources, flow_rates):
-        for name, x in source.items():
-            is_mixture[name] += x * Vdot / flowrate
-    is_mixture = mfclib.Mixture(composition=is_mixture)
+    final_mixture = mix_sources(sources, source_fractions)
 
     # output
     console.print(f"Calculating volumetric flow rates for: {mixture!r}")
@@ -171,7 +215,7 @@ def flowmix(mixture: mfclib.Mixture, **kws):
     table.add_column("composition")
     table.add_column(
         f"flow rate @ {temperature}",
-        footer=format_final_value(sum(flow_rates), flowrate),
+        footer=_format(sum(flow_rates), flowrate),
         justify="right",
     )
     table.add_column(
@@ -199,17 +243,23 @@ def flowmix(mixture: mfclib.Mixture, **kws):
         table.add_column(name, justify="right")
     table.add_column("sum", justify="right")
     table.add_row(
-        "soll",
-        *[f"{mixture.get(name)}" for name in species],
+        'soll',
+        *[
+            f"{mixture.get(name) if name in mixture else ''}"
+            for name in species
+        ],
         f"{mixture_total}",
     )
     table.add_row(
         "is",
         *[
-            format_final_value(is_mixture.get(name), mixture.get(name))
+            _format(
+                final_mixture.get(name),
+                mixture.get(name) if name in mixture else None,
+            )
             for name in species
         ],
-        format_final_value(sum(is_mixture.mole_fractions), mixture_total),
+        _format(sum(final_mixture.mole_fractions), mixture_total),
     )
     console.print(table)
 
@@ -218,7 +268,7 @@ def flowmix(mixture: mfclib.Mixture, **kws):
 
 
 @cli.command()
-@click.argument("mixture", type=str, callback=validate_mixture)
+@click.argument("mixture", type=str, callback=validate_balanced_mixture)
 def cf(mixture: mfclib.Mixture):
     """
     Calculate conversion factor (CF) for a given gas mixture.
@@ -278,7 +328,7 @@ def list_gases(filename: Optional[str] = None):
 
 
 @source.command('add')
-@click.argument("mixture", type=str, callback=validate_mixture)
+@click.argument("mixture", type=str, callback=validate_balanced_mixture)
 @click.option(
     '-n',
     '--name',

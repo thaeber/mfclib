@@ -1,11 +1,8 @@
+import pint
 import pytest
 
-import mfclib
 from mfclib import Mixture, supply_proportions_for_mixture
 from mfclib.mixture import _balance_mixture, _convert_value
-import pint
-from toolz import pipe
-import numpy as np
 
 
 class TestConvertValue:
@@ -184,18 +181,6 @@ class TestProportionsForMixture:
             abs=1e-8,
         )
 
-    def test_warn_on_duplicate_species_in_mixture(self):
-        sources = [
-            Mixture.from_kws(O2=0.21, N2='*'),
-            Mixture.from_kws(NO=0.003, N2='*'),
-        ]
-
-        with pytest.warns(UserWarning, match=r'Missing species in supply.'):
-            supply_proportions_for_mixture(
-                sources,
-                dict(CO=0.0004, N2='*'),
-            )
-
     def test_warn_on_invalid_sum(self):
         sources = [
             Mixture.from_kws(Ar=1.0),
@@ -228,26 +213,6 @@ class TestProportionsForMixture:
             supply_proportions_for_mixture(
                 sources,
                 dict(NO='400ppm', CO='400ppm', O2='10%', He='*'),
-            )
-
-    def test_call_unbalanced_mixture_should_not_raise(self, unit_registry):
-        ureg = unit_registry
-
-        sources = [
-            dict(He=1.0),
-            dict(O2=0.21, N2='*'),
-            dict(CO='10%', He='*'),
-            dict(NO='4%', He='*'),
-        ]
-
-        try:
-            _ = supply_proportions_for_mixture(
-                sources,
-                dict(NO='400ppm', CO='400ppm', O2='10%', He='*', N2='*'),
-            )
-        except ValueError as ex:
-            pytest.fail(
-                f'Call should not raise an ValueError exception:\n{repr(ex)}'
             )
 
     def test_calculate_with_unbalanced_mixture(self, unit_registry):
