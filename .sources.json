@@ -34,13 +34,6 @@
       }
     },
     {
-      "name": "O2/He",
-      "composition": {
-        "O2": "21 %",
-        "He": 0.79
-      }
-    },
-    {
       "name": "N2",
       "composition": {
         "N2": 1.0

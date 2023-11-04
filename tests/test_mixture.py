@@ -1,10 +1,8 @@
+import pint
 import pytest
 
-import mfclib
 from mfclib import Mixture, supply_proportions_for_mixture
 from mfclib.mixture import _balance_mixture, _convert_value
-import pint
-from toolz import pipe
 
 
 class TestConvertValue:
@@ -111,14 +109,14 @@ class TestMixture:
 
     def test_model_dump(self):
         mfc = Mixture(composition=dict(N2=0.79, O2=0.21), name='air')
-        assert mfc.model_dump() == {
+        assert mfc.model_dump(exclude_defaults=True) == {
             'composition': {'N2': 0.79, 'O2': 0.21},
             'name': 'air',
         }
 
     def test_model_dump_with_units(self, unit_registry):
         mfc = Mixture(composition=dict(N2=0.79, O2='21.0 %'), name='air')
-        assert mfc.model_dump() == {
+        assert mfc.model_dump(exclude_defaults=True) == {
             'composition': {'N2': 0.79, 'O2': '21.0 %'},
             'name': 'air',
         }
@@ -150,6 +148,10 @@ class TestMixture:
         assert mfc['O2'].magnitude == 21.0
         assert mfc['O2'].units == ureg.Unit('%')
 
+    def test_unbalanced_mixture_not_allowed(self, unit_registry):
+        with pytest.raises(ValueError):
+            _ = Mixture(composition=dict(NO='3000ppm', Ar='*', He='*'))
+
 
 class TestProportionsForMixture:
     def test_single_supply(self):
@@ -179,18 +181,6 @@ class TestProportionsForMixture:
             abs=1e-8,
         )
 
-    def test_warn_on_duplicate_species_in_mixture(self):
-        sources = [
-            Mixture.from_kws(O2=0.21, N2='*'),
-            Mixture.from_kws(NO=0.003, N2='*'),
-        ]
-
-        with pytest.warns(UserWarning, match=r'Missing species in supply.'):
-            supply_proportions_for_mixture(
-                sources,
-                dict(CO=0.0004, N2='*'),
-            )
-
     def test_warn_on_invalid_sum(self):
         sources = [
             Mixture.from_kws(Ar=1.0),
@@ -208,3 +198,59 @@ class TestProportionsForMixture:
                 sources,
                 dict(N2='*', NO=400e-6, CO=400e-6),
             )
+
+    def test_call_with_unbalanced_source(self, unit_registry):
+        ureg = unit_registry
+
+        sources = [
+            dict(He=1.0),
+            dict(O2=0.21, N2='*'),
+            dict(CO='10%', He='*'),
+            dict(NO='4%', He='*', N2='*'),
+        ]
+
+        with pytest.raises(ValueError):
+            supply_proportions_for_mixture(
+                sources,
+                dict(NO='400ppm', CO='400ppm', O2='10%', He='*'),
+            )
+
+    def test_calculate_with_unbalanced_mixture(self, unit_registry):
+        ureg = unit_registry
+
+        sources = [
+            dict(He=1.0),
+            dict(O2=0.20, N2='*'),
+            dict(CO='10%', He='*'),
+            dict(NO='4%', He='*'),
+        ]
+
+        x = supply_proportions_for_mixture(
+            sources,
+            dict(NO='400ppm', CO='800ppm', O2='10%', He='*'),
+        )
+
+        assert x == pytest.approx(
+            [0.482, 0.500, 0.008, 0.010],
+            abs=1e-8,
+        )
+
+    def test_calculate_with_missing_species_in_mixture(self, unit_registry):
+        ureg = unit_registry
+
+        sources = [
+            dict(He=1.0),
+            dict(O2=0.20, N2='*'),
+            dict(CO='10%', He='*'),
+            dict(NO='4%', He='*'),
+        ]
+
+        x = supply_proportions_for_mixture(
+            sources,
+            dict(NO='400ppm', CO='800ppm', O2='10%', He='*'),
+        )
+
+        assert x == pytest.approx(
+            [0.482, 0.500, 0.008, 0.010],
+            abs=1e-8,
+        )
