@@ -1,5 +1,3 @@
-import warnings
-
 from . import config
 from .cf import calculate_CF, get_CF_table
 from .mfc import Calibration

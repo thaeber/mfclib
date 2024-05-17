@@ -32,9 +32,7 @@ class TestConvertValue:
 
     def test_with_pint_quantity(self, unit_registry):
         assert _convert_value(pint.Quantity('2.0%')) == pytest.approx(0.02)
-        assert _convert_value(pint.Quantity('235.1ppm')) == pytest.approx(
-            0.0002351
-        )
+        assert _convert_value(pint.Quantity('235.1ppm')) == pytest.approx(0.0002351)
 
     def test_with_pint_str(self, unit_registry):
         assert _convert_value('2.0%') == pytest.approx(0.02)
@@ -72,9 +70,7 @@ class TestBalanceMixture:
     def test_with_pint_str(self, unit_registry):
         ureg = unit_registry
         feed = _balance_mixture(dict(Ar='*', NO='3000ppm'))
-        assert feed == dict(
-            Ar=ureg.Quantity(0.997), NO=ureg.Quantity(3000.0, 'ppm')
-        )
+        assert feed == dict(Ar=ureg.Quantity(0.997), NO=ureg.Quantity(3000.0, 'ppm'))
         assert feed == dict(Ar=0.997, NO=0.003)
 
 
@@ -191,17 +187,13 @@ class TestProportionsForMixture:
             Mixture.from_kws(NO2=0.01072, N2O=0.0, Ar='*'),
         ]
 
-        with pytest.warns(
-            UserWarning, match=r'Inconsistent mixture composition.'
-        ):
+        with pytest.warns(UserWarning, match=r'Inconsistent mixture composition.'):
             supply_proportions_for_mixture(
                 sources,
                 dict(N2='*', NO=400e-6, CO=400e-6),
             )
 
     def test_call_with_unbalanced_source(self, unit_registry):
-        ureg = unit_registry
-
         sources = [
             dict(He=1.0),
             dict(O2=0.21, N2='*'),
@@ -216,8 +208,6 @@ class TestProportionsForMixture:
             )
 
     def test_calculate_with_unbalanced_mixture(self, unit_registry):
-        ureg = unit_registry
-
         sources = [
             dict(He=1.0),
             dict(O2=0.20, N2='*'),
@@ -236,8 +226,6 @@ class TestProportionsForMixture:
         )
 
     def test_calculate_with_missing_species_in_mixture(self, unit_registry):
-        ureg = unit_registry
-
         sources = [
             dict(He=1.0),
             dict(O2=0.20, N2='*'),

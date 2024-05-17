@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import pint
 
@@ -19,10 +19,8 @@ def _check_configuration_key(key: str):
     if key in __default_configuration:
         return key
     else:
-        message = f'"key" is not a valid configuration key.'
-        detail = 'Possible keys are: ' + ', '.join(
-            __default_configuration.keys()
-        )
+        message = '"key" is not a valid configuration key.'
+        detail = 'Possible keys are: ' + ', '.join(__default_configuration.keys())
         raise ValueError('\n'.join([message, detail]))
 
 

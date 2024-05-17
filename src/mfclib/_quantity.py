@@ -1,15 +1,12 @@
 from io import BytesIO
 import token
 import tokenize
-from typing import Any, Generic, Type
+from typing import Any, Type
 
 from pint import Quantity, UndefinedUnitError
-import pint
-from pydantic import BaseModel, GetCoreSchemaHandler, GetJsonSchemaHandler
+from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema, core_schema
-
-import contextlib
 
 
 class PydanticQuantity(Quantity):
@@ -21,9 +18,7 @@ class PydanticQuantity(Quantity):
 
     @staticmethod
     def parse_expression(input_string: str):
-        tokens = tokenize.tokenize(
-            BytesIO(input_string.encode("utf-8")).readline
-        )
+        tokens = tokenize.tokenize(BytesIO(input_string.encode("utf-8")).readline)
         t = next(tokens)
         if t.type != token.ENCODING:
             return None
@@ -73,17 +68,14 @@ class PydanticQuantity(Quantity):
                         source_value, units = parsed
                 value = Quantity(source_value, units=units)
         except UndefinedUnitError as ex:
-            raise ValueError(
-                f'Cannot convert "{source_value}" to quantity'
-            ) from ex
+            raise ValueError(f'Cannot convert "{source_value}" to quantity') from ex
         if not isinstance(value, Quantity):
-            raise TypeError(
-                f'pint.Quantity required ({value}, type = {type(value)})'
-            )
+            raise TypeError(f'pint.Quantity required ({value}, type = {type(value)})')
         if cls.restrict_dimensionality is not None:
             if not value.check(cls.restrict_dimensionality):
                 raise ValueError(
-                    f"The dimensionality of the passed value ('{source_value}') must be compatible with '{cls.restrict_dimensionality}'",
+                    f"The dimensionality of the passed value ('{source_value}') must "
+                    "be compatible with '{cls.restrict_dimensionality}'"
                 )
         return value
 

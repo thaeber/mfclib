@@ -1,5 +1,7 @@
 <!-- insertion marker -->
+
 <a name="Unreleased"></a>
+
 ## Unreleased ([compare](https://github.com/thaeber/mfclib/compare/v0.2.1...HEAD)) (2024-05-17)
 
 ### Features
@@ -7,6 +9,7 @@
 - Introducing PydanticQuantity to use pint quantities with pydantic objects ([c847b00](https://github.com/thaeber/mfclib/commit/c847b0051750d9f5e872d2ce57a4d632117d9416))
 
 <!-- insertion marker -->
+
 <a name="v0.2.1"></a>
 
 ## [v0.2.1](https://github.com/thaeber/mfclib/compare/v0.2.0...v0.2.1) (2023-11-04)
@@ -28,4 +31,3 @@
 - Clean up dependencies ([3dd96ce](https://github.com/thaeber/mfclib/commit/3dd96ce0b5fe72e847c55b312f4209dd704332e4))
 - Supply unit registry only via configuration to make the usage easier ([44676c2](https://github.com/thaeber/mfclib/commit/44676c2faf24a1fcd16e5cf9de5cef0a46899a3f))
 - Make usage of unit registry explicit in calls to Mixture.__init__ ([0cf1179](https://github.com/thaeber/mfclib/commit/0cf117956d6710c572afce648bcbb061fdc246c2))
-

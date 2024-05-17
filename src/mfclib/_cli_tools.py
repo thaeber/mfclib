@@ -45,16 +45,15 @@ def _validate_quantity(ctx, param, value):
         ureg = mfclib.config.unitRegistry()
         return ureg.Quantity(value)
     except ValueError:
-        raise click.BadParameter(
-            f"Could not convert {value} to a number or quantity."
-        )
+        raise click.BadParameter(f"Could not convert {value} to a number or quantity.")
 
 
 def validate_flowrate(ctx, param, value):
     value = _validate_quantity(ctx, param, value)
     if not (value.check("[]") or value.check("[length]**3 / [time]")):
         raise click.BadParameter(
-            "Value must be dimensionless or have units of volumetric flow rate \[volume/time]."
+            "Value must be dimensionless or have units of "
+            "volumetric flow rate [volume/time]."
         )
     return value
 

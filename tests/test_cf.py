@@ -15,4 +15,4 @@ def test_get_CF_table():
 
 def test_calculate_CF():
     mixture = dict(N2=0.9, CO=0.05, NO=0.05)
-    cf = mfclib.calculate_CF(mixture)
+    mfclib.calculate_CF(mixture)

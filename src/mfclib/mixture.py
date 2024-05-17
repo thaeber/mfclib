@@ -1,4 +1,5 @@
 import collections.abc
+import textwrap
 import warnings
 from typing import (
     Any,
@@ -37,7 +38,8 @@ def _convert_value(
         # check that value is dimensionless
         if not converted.check("[]"):
             raise ValueError(
-                f"`{converted:~P}` is not dimensionless, but has dimensions of `{converted.units:P}`"
+                f"`{converted:~P}` is not dimensionless, but has "
+                f"dimensions of `{converted.units:P}`"
             )
         return converted
     else:
@@ -46,9 +48,7 @@ def _convert_value(
 
 def _get_balance_species(feed: MixtureMapping):
     balance_indicator = balanceSpeciesIndicator()
-    balance_species = [
-        key for key, value in feed.items() if value == balance_indicator
-    ]
+    balance_species = [key for key, value in feed.items() if value == balance_indicator]
 
     # ensure there is at most one species marked for balance
     match balance_species:
@@ -69,7 +69,6 @@ def _convert_mixture(feed: MixtureMapping):
 
 
 def _balance_mixture(feed: MixtureMapping):
-    balance_indicator = "*"
     balance_with: str | None = None
 
     # convert feed values
@@ -225,10 +224,7 @@ def _strip_unit(value):
 def _solve_system(sources, mixture, species):
     # solve system of linear equations of species with known concentrations
     # build source matrix
-    A = [
-        [_strip_unit(source.get(key, 0.0)) for source in sources]
-        for key in species
-    ]
+    A = [[_strip_unit(source.get(key, 0.0)) for source in sources] for key in species]
 
     # build target composition vector
     b = [_strip_unit(mixture.get(key, 0.0)) for key in species]
@@ -246,8 +242,10 @@ def supply_proportions_for_mixture(
     contribution of each gas supply to obtaining a given gas mixture.
 
     Args:
-        `sources` (Iterable[Supply]): The compositions of the available supply gases.
-        `mixture` (Mixture | Mapping[str, Any]): The composition of the final mixture solved for.
+        `sources` (Iterable[Supply]): The compositions of the available
+            supply gases.
+        `mixture` (Mixture | Mapping[str, Any]): The composition of the
+            final mixture solved for.
 
     Returns:
         NDArray[np.float64]: Array of relative flow rates of each supply required
@@ -269,7 +267,10 @@ def supply_proportions_for_mixture(
     # warn if mixture contains species that are not supplied
     missing_species = set(mixture_species) - set(species)
     if missing_species:
-        details = f"\nThe following species are in the mixture but not in any of the sources:\n{missing_species}"
+        details = (
+            f"\nThe following species are in the mixture "
+            f"but not in any of the sources:\n{missing_species}"
+        )
         warnings.warn("Missing species in supply." + details)
 
     balance_with = _get_balance_species(mixture)
@@ -282,9 +283,7 @@ def supply_proportions_for_mixture(
                 unknown.append(name)
 
         # exclude balance species if present
-        x = _solve_system(
-            sources, mixture, [s for s in species if (s not in unknown)]
-        )
+        x = _solve_system(sources, mixture, [s for s in species if (s not in unknown)])
 
         # calculate resulting mixture and add balance species back
         _old = {key: mixture[key] for key in mixture}
@@ -308,12 +307,18 @@ def supply_proportions_for_mixture(
     tolerance = 1.0e-4
     total = np.sum(x)
     if abs(total - 1.0) > tolerance:
-        details = f"\nThe sum of supply proportions (actual value: {total}) is not 1 to within a tolerance of {tolerance}."
-        details += " Either the fit did not converge or the desired mixture cannot be obtained using the chosen gas supplies."
-        details += f"\nObtained proportions:"
+        details = textwrap.dedent(
+            f"""
+            Inconsistent mixture composition:
+            The sum of supply proportions (actual value: {total}) is not 1
+            to within a tolerance of {tolerance}. Either the fit did not converge
+            or the desired mixture cannot be obtained using the chosen gas
+            supplies. Obtained proportions:
+            """
+        )
         for source, value in zip(sources, x):
             details += f"\n{source.name} = {value}"
-        warnings.warn("Inconsistent mixture composition." + details)
+        warnings.warn(details)
 
     # return relative flow rates for each supply
     return x

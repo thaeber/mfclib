@@ -1,7 +1,4 @@
-import pint
-import pytest
-
-from mfclib import Calibration, Mixture
+from mfclib import Calibration
 
 
 class TestCalibration:

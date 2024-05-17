@@ -113,9 +113,11 @@ def _format(value, reference):
     else:
         return _format_status(
             value,
-            StatusFlag.OK
-            if abs(1.0 - value / reference) < tolerance
-            else StatusFlag.ERROR,
+            (
+                StatusFlag.OK
+                if abs(1.0 - value / reference) < tolerance
+                else StatusFlag.ERROR
+            ),
         )
 
 
@@ -161,9 +163,9 @@ def mix_sources(sources, fractions):
 @click.option("--markdown", is_flag=True, default=False)
 def flowmix(mixture: mfclib.Mixture, **kws):
     """
-    Calculate flow rates of source gases to obtain a given gas mixture. GASES_FILE contains
-    the composition of source gases in TOML format and MIXTURE_COMPOSITION defines the
-    target mixture.
+    Calculate flow rates of source gases to obtain a given gas mixture.
+    GASES_FILE contains the composition of source gases in TOML format
+    and MIXTURE_COMPOSITION defines the target mixture.
 
     Example:
 
@@ -244,10 +246,7 @@ def flowmix(mixture: mfclib.Mixture, **kws):
     table.add_column("sum", justify="right")
     table.add_row(
         'soll',
-        *[
-            f"{mixture.get(name) if name in mixture else ''}"
-            for name in species
-        ],
+        *[f"{mixture.get(name) if name in mixture else ''}" for name in species],
         f"{mixture_total}",
     )
     table.add_row(
@@ -368,9 +367,7 @@ def add_gas(
     help='The index (#) of the source gas mixture to remove.',
 )
 # @click.option('-n', '--name', type=str)
-@click.option(
-    '--all', is_flag=True, default=False, help='Removes all gas mixtures.'
-)
+@click.option('--all', is_flag=True, default=False, help='Removes all gas mixtures.')
 @sources_option
 def remove_gas(
     filename: Optional[str] = None,
