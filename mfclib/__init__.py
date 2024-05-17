@@ -9,5 +9,6 @@ from .mixture import (
     supply_proportions_for_mixture,
     ensure_mixture_type,
 )
+from .mfc import Calibration
 
 __version__ = "0.2.1"

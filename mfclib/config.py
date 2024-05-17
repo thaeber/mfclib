@@ -23,7 +23,7 @@ def _check_configuration_key(key: str):
         detail = 'Possible keys are: ' + ', '.join(
             __default_configuration.keys()
         )
-        ValueError('\n'.join([message, detail]))
+        raise ValueError('\n'.join([message, detail]))
 
 
 def _get_config_value(key: str):
@@ -45,7 +45,9 @@ def reset_to_default():
 
 
 def balanceSpeciesIndicator():
-    return _get_config_value(BALANCE_SPECIES_KEY)
+    indicator = _get_config_value(BALANCE_SPECIES_KEY)
+    assert isinstance(indicator, str)
+    return indicator
 
 
 def unitRegistry() -> None | pint.UnitRegistry:

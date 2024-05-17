@@ -5,6 +5,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Literal,
     Mapping,
     Optional,
     SupportsFloat,
@@ -18,12 +19,12 @@ import pydantic
 import scipy.optimize
 from numpy.typing import NDArray
 
-from .config import balanceSpeciesIndicator, unitRegistry
 from .cf import calculate_CF
+from .config import balanceSpeciesIndicator, unitRegistry
 
-Mixture: TypeAlias = 'Mixture'
-MixtureMapping: TypeAlias = Mapping[str, SupportsFloat]
-MixtureType: TypeAlias = Union[Mixture, MixtureMapping]
+AmountType: TypeAlias = SupportsFloat | Literal['*']
+MixtureMapping: TypeAlias = Mapping[str, AmountType]
+MixtureType: TypeAlias = 'Mixture' | MixtureMapping
 
 
 def _convert_value(
@@ -152,7 +153,7 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
         return calculate_CF(self)
 
     @classmethod
-    def from_kws(cls, name: str | None = None, **components: SupportsFloat):
+    def from_kws(cls, name: str | None = None, **components: AmountType):
         return Mixture(composition=components, name=name)
 
     def __getitem__(self, key):
@@ -292,7 +293,10 @@ def supply_proportions_for_mixture(
             for name in source:
                 mixture[name] += x[k] * _strip_unit(source[name])
         if balance_with:
-            mixture[balance_with] = balanceSpeciesIndicator()
+            # here we add back the balance species using the
+            # wildcard option for the amount, so that the final
+            # amount is calculated by balancing the mixture
+            mixture[balance_with] = balanceSpeciesIndicator()  # type: ignore
 
     mixture = _balance_mixture(mixture)
     x = _solve_system(sources, mixture, species)

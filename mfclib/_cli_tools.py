@@ -96,7 +96,7 @@ def save_source_gases(
 
     # dump mixtures as JSON
     try:
-        json = gases.model_dump_json(indent=2)
+        json = gases.model_dump_json(indent=2, exclude_defaults=True)
         with open(filename, 'w') as f:
             f.write(json)
     except IOError as e:

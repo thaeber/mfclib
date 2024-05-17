@@ -1,0 +1,36 @@
+{
+  "mixtures": [
+    {
+      "name": "H2",
+      "composition": {
+        "H2": 1.0
+      }
+    },
+    {
+      "name": "N2",
+      "composition": {
+        "N2": 1.0
+      }
+    },
+    {
+      "name": "NH3/He",
+      "composition": {
+        "NH3": "0.875 %",
+        "He": 0.99125
+      }
+    },
+    {
+      "name": "Ar",
+      "composition": {
+        "Ar": 1.0
+      }
+    },
+    {
+      "name": "O2/N2",
+      "composition": {
+        "O2": "21 %",
+        "N2": 0.79
+      }
+    }
+  ]
+}
