@@ -1,13 +1,13 @@
 import datetime
-from typing import (
-    Literal,
-)
+from typing import Literal
 
 import pint
 import pydantic
 import pydantic_core
 from typing_extensions import Annotated
 
+from ._quantity import FlowRateQ, TemperatureQ
+from .mixture import Mixture
 
 FitType = Literal['linear', 'quadratic']
 Quantity = Annotated[
@@ -21,10 +21,8 @@ Quantity = Annotated[
 
 
 class Calibration(pydantic.BaseModel):
-    pass
-    # date: datetime.date
-    # pressure: Quantity
-    # temperature: Quantity
-    # gas: Mixture
-    # setpoint: List[Quantity]
-    # flowrate: List[Quantity]
+    date: datetime.date
+    gas: Mixture
+    temperature: TemperatureQ
+    offset: FlowRateQ
+    slope: FlowRateQ

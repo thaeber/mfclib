@@ -66,7 +66,7 @@ class PydanticQuantity(Quantity):
             if not value.check(cls.restrict_dimensionality):
                 raise ValueError(
                     f"The dimensionality of the passed value ('{source_value}') must "
-                    "be compatible with '{cls.restrict_dimensionality}'"
+                    f"be compatible with '{cls.restrict_dimensionality}'"
                 )
         return value
 
@@ -105,3 +105,7 @@ class TemperatureQ(PydanticQuantity):
 
 class PressureQ(PydanticQuantity):
     restrict_dimensionality = '[pressure]'
+
+
+class FlowRateQ(PydanticQuantity):
+    restrict_dimensionality = '[volume]/[time]'
