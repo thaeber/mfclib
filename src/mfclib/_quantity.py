@@ -1,6 +1,7 @@
-from io import BytesIO
+import re
 import token
 import tokenize
+from io import BytesIO
 from typing import Any, Type
 
 from pint import Quantity, UndefinedUnitError
@@ -18,35 +19,25 @@ class PydanticQuantity(Quantity):
 
     @staticmethod
     def parse_expression(input_string: str):
-        tokens = tokenize.tokenize(BytesIO(input_string.encode("utf-8")).readline)
-        t = next(tokens)
-        if t.type != token.ENCODING:
+        if m := re.match(
+            rf'(?P<number>{tokenize.Number}){tokenize.Whitespace}(?P<unit>(\[(.*)\])|(.*))',
+            input_string,
+        ):
+            number = m.group('number')
+            try:
+                number = int(number)
+            except ValueError:
+                number = float(number)
+
+            unit = m.group('unit')
+            # if unit and (unit[0] == '[') and (unit[-1] == ']'):
+            if unit and unit[0].startswith('[') and unit.endswith(']'):
+                unit = unit[1:-1]
+
+            return number, unit
+
+        else:
             return None
-
-        t = next(tokens)
-        if t.type != token.NUMBER:
-            return None
-        number = t.string
-
-        t = next(tokens)
-        if t.type != token.NAME:
-            return None
-        unit = t.string
-
-        t = next(tokens)
-        if t.type != token.NEWLINE:
-            return None
-
-        t = next(tokens)
-        if t.type != token.ENDMARKER:
-            return None
-
-        try:
-            number = int(number)
-        except ValueError:
-            number = float(number)
-
-        return number, unit
 
     @classmethod
     def _validate(cls, source_value, units=None):

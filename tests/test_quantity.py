@@ -12,15 +12,33 @@ from mfclib._quantity import (
 
 
 class TestQuantity:
-    def test_create_instance(self):
+    def test_create_instance1(self):
         q = PydanticQuantity(1.0)
         assert q == pint.Quantity(1.0)
 
+    def test_create_instance2(self):
         q = PydanticQuantity(1.0, 'm')
         assert q == pint.Quantity(1.0, 'm')
 
+    def test_create_instance3(self):
         q = PydanticQuantity('1.0m')
         assert q == pint.Quantity(1.0, 'm')
+
+    def test_create_instance4(self):
+        q = PydanticQuantity('1.2[degC]')
+        assert q == pint.Quantity(1.2, 'degC')
+
+    def test_create_instance5(self):
+        q = PydanticQuantity('1.2[degC/s]')
+        assert q == pint.Quantity(1.2, 'degC/s')
+
+    def test_create_instance6(self):
+        q = PydanticQuantity('1.2 [m/s]')
+        assert q == pint.Quantity(1.2, 'm/s')
+
+    def test_create_instance7(self):
+        q = PydanticQuantity('1.0m/s')
+        assert q == pint.Quantity(1.0, 'm/s')
 
     def test_pydantic_model(self):
         class Model(BaseModel):

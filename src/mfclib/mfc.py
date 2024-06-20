@@ -1,3 +1,4 @@
+import datetime
 from typing import (
     Literal,
 )
@@ -20,7 +21,8 @@ Quantity = Annotated[
 
 
 class Calibration(pydantic.BaseModel):
-    dummy: str
+    pass
+    # date: datetime.date
     # pressure: Quantity
     # temperature: Quantity
     # gas: Mixture
