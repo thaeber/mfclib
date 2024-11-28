@@ -3,6 +3,7 @@ import datetime
 from pydantic import ValidationError
 import pytest
 
+import mfclib
 from mfclib.mfc import CalibrationBase
 from mfclib import LinearCalibration
 from mfclib.mixture import Mixture
@@ -14,8 +15,8 @@ class TestCalibrationBase:
 
 
 class TestLinearCalibration:
-    def test_create_instance(self, unit_registry):
-        ureg = unit_registry
+    def test_create_instance(self):
+        ureg = mfclib.unit_registry()
         c = LinearCalibration(
             date=datetime.date(2024, 6, 20),
             gas=Mixture(composition=dict(NH3='1%', He='*')),
@@ -30,8 +31,8 @@ class TestLinearCalibration:
         assert c.offset == ureg('0.0 L/min')
         assert c.slope == ureg('500.0 L/min')
 
-    def test_create_instance_from_strings(self, unit_registry):
-        ureg = unit_registry
+    def test_create_instance_from_strings(self):
+        ureg = mfclib.unit_registry()
         c = LinearCalibration(
             date='2024-06-20',  # type: ignore
             gas=dict(composition=dict(NH3='1%', He='*')),  # type: ignore

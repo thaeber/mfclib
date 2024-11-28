@@ -9,6 +9,7 @@ from typing_extensions import Annotated
 
 from ._quantity import FlowRateQ, TemperatureQ
 from .mixture import Mixture
+from . import unit_registry
 
 
 class CalibrationBase(pydantic.BaseModel):
@@ -17,9 +18,9 @@ class CalibrationBase(pydantic.BaseModel):
     temperature: TemperatureQ
 
     @staticmethod
-    def validate_setpoint(setpoint: pint.Quantity):
-        ureg = pint.get_application_registry()
-        value = ureg(setpoint)
+    def validate_setpoint(setpoint: float | pint.Quantity):
+        ureg = unit_registry()
+        value = ureg.Quantity(setpoint)
         value = cast(pint.Quantity, value)
 
         # check that setpoint is dimensionless
