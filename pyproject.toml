@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mfclib"
-version = "0.2.2"
+version = "0.2.3"
 description = "A small Python module to calculate flow rates for gas mixtures."
 authors = ["Thomas Haeber <thomas.haeber@kit.edu>"]
 readme = "README.md"
@@ -43,7 +43,7 @@ build-backend = "poetry.core.masonry.api"
 skip-string-normalization = true
 
 [tool.bumpversion]
-current_version = "0.2.2"
+current_version = "0.2.3"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 search = "{current_version}"
