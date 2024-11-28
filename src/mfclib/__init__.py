@@ -7,7 +7,10 @@ from .mixture import Mixture, ensure_mixture_type, supply_proportions_for_mixtur
 
 from .version import __version__
 
+# list of permanent imports to prevent `pre-commit` from removing as
+# unused import
 __all__ = [
+    __version__,
     config,
     unitRegistry,
     calculate_CF,

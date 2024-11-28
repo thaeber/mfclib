@@ -3,13 +3,14 @@ import datetime
 from pydantic import ValidationError
 import pytest
 
+import mfclib
 from mfclib import Calibration
 from mfclib.mixture import Mixture
 
 
 class TestCalibration:
-    def test_create_instance(self, unit_registry):
-        ureg = unit_registry
+    def test_create_instance(self):
+        ureg = mfclib.unitRegistry()
         c = Calibration(
             date=datetime.date(2024, 6, 20),
             gas=Mixture(composition=dict(NH3='1%', He='*')),
@@ -24,8 +25,8 @@ class TestCalibration:
         assert c.offset == ureg('0.0 L/min')
         assert c.slope == ureg('500.0 L/min')
 
-    def test_create_instance_from_strings(self, unit_registry):
-        ureg = unit_registry
+    def test_create_instance_from_strings(self):
+        ureg = mfclib.unitRegistry()
         c = Calibration(
             date='2024-06-20',  # type: ignore
             gas=dict(composition=dict(NH3='1%', He='*')),  # type: ignore
@@ -40,7 +41,7 @@ class TestCalibration:
         assert c.offset == ureg('0.0 L/min')
         assert c.slope == ureg('500.0 L/min')
 
-    def test_create_invalid_temperature_units(self, unit_registry):
+    def test_create_invalid_temperature_units(self):
         with pytest.raises(ValidationError):
             Calibration(
                 date='2024-06-20',  # type: ignore
@@ -50,7 +51,7 @@ class TestCalibration:
                 slope='500[L/min]',  # type: ignore
             )
 
-    def test_create_invalid_offset_units(self, unit_registry):
+    def test_create_invalid_offset_units(self):
         with pytest.raises(ValidationError):
             Calibration(
                 date='2024-06-20',  # type: ignore
@@ -60,7 +61,7 @@ class TestCalibration:
                 slope='500[L/min]',  # type: ignore
             )
 
-    def test_create_invalid_slope_units(self, unit_registry):
+    def test_create_invalid_slope_units(self):
         with pytest.raises(ValidationError):
             Calibration(
                 date='2024-06-20',  # type: ignore
