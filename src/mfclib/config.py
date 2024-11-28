@@ -3,6 +3,7 @@ from typing import Any, Dict
 
 import deprecation
 import pint
+from .version import __version__
 
 UNIT_REGISTRY_KEY = 'UNIT_REGISTRY'
 BALANCE_SPECIES_KEY = 'BALANCE_SPECIES_INDICATOR'
@@ -63,6 +64,7 @@ def sourceGasesFile():
 @deprecation.deprecated(
     deprecated_in='0.2.3',
     removed_in='1.0',
+    current_version=__version__,
     details=(
         'Pint now already includes "%" and "ppm" as units,'
         ' so an explicit registration is not necessary.'

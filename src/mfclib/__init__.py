@@ -5,7 +5,7 @@ from .mfc import Calibration
 from .mixture import MixtureCollection  # Supply,
 from .mixture import Mixture, ensure_mixture_type, supply_proportions_for_mixture
 
-__version__ = "0.2.2"
+from .version import __version__
 
 __all__ = [
     config,
