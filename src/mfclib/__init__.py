@@ -1,6 +1,6 @@
 from . import config
 from .cf import calculate_CF, get_CF_table
-from .mfc import Calibration
+from .mfc import LinearCalibration
 from .mixture import (
     Mixture,
     MixtureCollection,  # Supply,
@@ -18,5 +18,5 @@ __all__ = [
     MixtureCollection,
     supply_proportions_for_mixture,
     ensure_mixture_type,
-    Calibration,
+    LinearCalibration,
 ]  # type: ignore

@@ -29,7 +29,7 @@ MixtureType: TypeAlias = 'Mixture' | MixtureMapping
 
 
 def _convert_value(
-    value: SupportsFloat,
+    value: str | SupportsFloat,
 ):
     if value == balanceSpeciesIndicator():
         return value
