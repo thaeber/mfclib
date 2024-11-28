@@ -1,6 +1,7 @@
 import warnings
 from typing import Any, Dict
 
+import deprecation
 import pint
 
 UNIT_REGISTRY_KEY = 'UNIT_REGISTRY'
@@ -48,14 +49,26 @@ def balanceSpeciesIndicator():
     return indicator
 
 
-def unitRegistry() -> None | pint.UnitRegistry:
-    return _get_config_value(UNIT_REGISTRY_KEY)
+def unitRegistry():
+    if ureg := _get_config_value(UNIT_REGISTRY_KEY):
+        return ureg
+    else:
+        return pint.get_application_registry()
 
 
 def sourceGasesFile():
     return _get_config_value(SOURCE_GASES_FILE_KEY)
 
 
+@deprecation.deprecated(
+    deprecated_in='0.2.3',
+    removed_in='1.0',
+    details=(
+        'Pint now already includes "%" and "ppm" as units,'
+        ' so an explicit registration is not necessary.'
+        ' "frac" and "ppb" will be removed as units entirely.'
+    ),
+)
 def register_units(registry: pint.UnitRegistry):
     """
     Registers specialized dimensionless units in the provided unit registry.

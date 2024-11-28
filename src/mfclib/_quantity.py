@@ -1,7 +1,5 @@
 import re
-import token
 import tokenize
-from io import BytesIO
 from typing import Any, Type
 
 from pint import Quantity, UndefinedUnitError

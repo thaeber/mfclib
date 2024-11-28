@@ -1,4 +1,5 @@
 <!-- insertion marker -->
+
 <a name="v0.2.2"></a>
 
 ## [v0.2.2](https://github.com/thaeber/mfclib/compare/v0.2.1...v0.2.2) (2024-05-17)
@@ -33,4 +34,3 @@
 - Clean up dependencies ([3dd96ce](https://github.com/thaeber/mfclib/commit/3dd96ce0b5fe72e847c55b312f4209dd704332e4))
 - Supply unit registry only via configuration to make the usage easier ([44676c2](https://github.com/thaeber/mfclib/commit/44676c2faf24a1fcd16e5cf9de5cef0a46899a3f))
 - Make usage of unit registry explicit in calls to Mixture.__init__ ([0cf1179](https://github.com/thaeber/mfclib/commit/0cf117956d6710c572afce648bcbb061fdc246c2))
-

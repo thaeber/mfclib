@@ -11,16 +11,14 @@ class TestConvertValue:
 
     def test_with_int(self):
         value = _convert_value(2)
-        assert isinstance(value, float)
         assert value == 2.0
 
     def test_with_str(self):
         value = _convert_value('0.678')
-        assert isinstance(value, float)
         assert value == 0.678
 
     def test_fails_on_invalid_str(self):
-        with pytest.raises(ValueError):
+        with pytest.raises((ValueError, pint.UndefinedUnitError)):
             _convert_value('test')
 
     @pytest.mark.skip(

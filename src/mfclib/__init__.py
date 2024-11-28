@@ -1,17 +1,15 @@
 from . import config
 from .cf import calculate_CF, get_CF_table
+from .config import unitRegistry
 from .mfc import Calibration
-from .mixture import (
-    Mixture,
-    MixtureCollection,  # Supply,
-    ensure_mixture_type,
-    supply_proportions_for_mixture,
-)
+from .mixture import MixtureCollection  # Supply,
+from .mixture import Mixture, ensure_mixture_type, supply_proportions_for_mixture
 
 __version__ = "0.2.2"
 
 __all__ = [
     config,
+    unitRegistry,
     calculate_CF,
     get_CF_table,
     Mixture,

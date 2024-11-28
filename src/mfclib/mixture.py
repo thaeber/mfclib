@@ -216,7 +216,8 @@ class MixtureCollection(
 
 def _strip_unit(value):
     try:
-        return value.to('frac').magnitude
+        # convert quantity to dimensionless
+        return value.m_as('')
     except AttributeError:
         return value
 
