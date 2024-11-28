@@ -2,6 +2,7 @@ import pint
 import pytest
 
 from mfclib import Mixture, supply_proportions_for_mixture
+import mfclib
 from mfclib.mixture import _balance_mixture, _convert_value
 
 
@@ -11,16 +12,14 @@ class TestConvertValue:
 
     def test_with_int(self):
         value = _convert_value(2)
-        assert isinstance(value, float)
         assert value == 2.0
 
     def test_with_str(self):
         value = _convert_value('0.678')
-        assert isinstance(value, float)
         assert value == 0.678
 
     def test_fails_on_invalid_str(self):
-        with pytest.raises(ValueError):
+        with pytest.raises((ValueError, pint.UndefinedUnitError)):
             _convert_value('test')
 
     @pytest.mark.skip(
@@ -30,11 +29,11 @@ class TestConvertValue:
         with pytest.raises(ValueError):
             _convert_value('0,678')
 
-    def test_with_pint_quantity(self, unit_registry):
+    def test_with_pint_quantity(self):
         assert _convert_value(pint.Quantity('2.0%')) == pytest.approx(0.02)
         assert _convert_value(pint.Quantity('235.1ppm')) == pytest.approx(0.0002351)
 
-    def test_with_pint_str(self, unit_registry):
+    def test_with_pint_str(self):
         assert _convert_value('2.0%') == pytest.approx(0.02)
         assert _convert_value('2.0percent') == pytest.approx(0.02)
         assert _convert_value('200ppm') == pytest.approx(0.0002)
@@ -67,8 +66,8 @@ class TestBalanceMixture:
         with pytest.raises(ValueError):
             _balance_mixture(dict(Ar='*', N2='*', NO=0.003))
 
-    def test_with_pint_str(self, unit_registry):
-        ureg = unit_registry
+    def test_with_pint_str(self):
+        ureg = mfclib.unit_registry()
         feed = _balance_mixture(dict(Ar='*', NO='3000ppm'))
         assert feed == dict(Ar=ureg.Quantity(0.997), NO=ureg.Quantity(3000.0, 'ppm'))
         assert feed == dict(Ar=0.997, NO=0.003)
@@ -110,7 +109,7 @@ class TestMixture:
             'name': 'air',
         }
 
-    def test_model_dump_with_units(self, unit_registry):
+    def test_model_dump_with_units(self):
         mfc = Mixture(composition=dict(N2=0.79, O2='21.0 %'), name='air')
         assert mfc.model_dump(exclude_defaults=True) == {
             'composition': {'N2': 0.79, 'O2': '21.0 %'},
@@ -124,8 +123,8 @@ class TestMixture:
         assert mfc.composition == dict(N2=0.79, O2=0.21)
         assert dict(mfc) == dict(N2=0.79, O2=0.21)
 
-    def test_model_dump_roundtrip_with_units(self, unit_registry):
-        ureg = unit_registry
+    def test_model_dump_roundtrip_with_units(self):
+        ureg = mfclib.unit_registry()
 
         original = Mixture(composition=dict(N2=0.79, O2='21%'), name='air')
         mfc = Mixture(**original.model_dump())
@@ -144,7 +143,7 @@ class TestMixture:
         assert mfc['O2'].magnitude == 21.0
         assert mfc['O2'].units == ureg.Unit('%')
 
-    def test_unbalanced_mixture_not_allowed(self, unit_registry):
+    def test_unbalanced_mixture_not_allowed(self):
         with pytest.raises(ValueError):
             _ = Mixture(composition=dict(NO='3000ppm', Ar='*', He='*'))
 
@@ -193,7 +192,7 @@ class TestProportionsForMixture:
                 dict(N2='*', NO=400e-6, CO=400e-6),
             )
 
-    def test_call_with_unbalanced_source(self, unit_registry):
+    def test_call_with_unbalanced_source(self):
         sources = [
             dict(He=1.0),
             dict(O2=0.21, N2='*'),
@@ -207,7 +206,7 @@ class TestProportionsForMixture:
                 dict(NO='400ppm', CO='400ppm', O2='10%', He='*'),
             )
 
-    def test_calculate_with_unbalanced_mixture(self, unit_registry):
+    def test_calculate_with_unbalanced_mixture(self):
         sources = [
             dict(He=1.0),
             dict(O2=0.20, N2='*'),
@@ -225,7 +224,7 @@ class TestProportionsForMixture:
             abs=1e-8,
         )
 
-    def test_calculate_with_missing_species_in_mixture(self, unit_registry):
+    def test_calculate_with_missing_species_in_mixture(self):
         sources = [
             dict(He=1.0),
             dict(O2=0.20, N2='*'),

@@ -21,7 +21,7 @@ import scipy.optimize
 from numpy.typing import NDArray
 
 from .cf import calculate_CF
-from .config import balanceSpeciesIndicator, unitRegistry
+from .config import balanceSpeciesIndicator, unit_registry
 
 AmountType: TypeAlias = SupportsFloat | Literal['*']
 MixtureMapping: TypeAlias = Mapping[str, AmountType]
@@ -33,7 +33,7 @@ def _convert_value(
 ):
     if value == balanceSpeciesIndicator():
         return value
-    if ureg := unitRegistry():
+    if ureg := unit_registry():
         converted = ureg.Quantity(value)
         # check that value is dimensionless
         if not converted.check("[]"):
@@ -128,7 +128,7 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
     ):
         def func(value):
             if isinstance(value, pint.Quantity):
-                if value.units == unitRegistry().Unit(''):
+                if value.units == unit_registry().Unit(''):
                     return float(value)
                 else:
                     return f'{value:~D}'
@@ -216,7 +216,8 @@ class MixtureCollection(
 
 def _strip_unit(value):
     try:
-        return value.to('frac').magnitude
+        # convert quantity to dimensionless
+        return value.m_as('')
     except AttributeError:
         return value
 

@@ -6,7 +6,7 @@ class TestMixtureCollection:
         mixtures = MixtureCollection()
         assert len(mixtures) == 0
 
-    def test_create_with_mixtures(self, unit_registry):
+    def test_create_with_mixtures(self):
         source = [
             Mixture(composition=dict(Ar='*')),
             Mixture(composition=dict(CH4='5%', N2='*')),
@@ -15,13 +15,13 @@ class TestMixtureCollection:
         assert len(mixtures) == 2
         assert list(mixtures) == source
 
-    def test_add_mixture(self, unit_registry):
+    def test_add_mixture(self):
         collection = MixtureCollection()
         collection.append(Mixture.from_kws(Ar=1.0))
         assert len(collection) == 1
         assert collection[0] == Mixture.from_kws(Ar=1.0)
 
-    def test_delete_mixture(self, unit_registry):
+    def test_delete_mixture(self):
         mixtures = MixtureCollection(
             mixtures=[
                 Mixture(composition=dict(Ar='*')),
@@ -38,7 +38,7 @@ class TestMixtureCollection:
             Mixture(composition=dict(NO='5000ppm', N2='*')),
         ]
 
-    def test_clear(self, unit_registry):
+    def test_clear(self):
         mixtures = MixtureCollection(
             mixtures=[
                 Mixture(composition=dict(Ar='*')),

@@ -46,7 +46,7 @@ class TestLinearCalibration:
         assert c.offset == ureg('0.0 L/min')
         assert c.slope == ureg('500.0 L/min')
 
-    def test_create_invalid_temperature_units(self, unit_registry):
+    def test_create_invalid_temperature_units(self):
         with pytest.raises(ValidationError):
             LinearCalibration(
                 date='2024-06-20',  # type: ignore
@@ -56,7 +56,7 @@ class TestLinearCalibration:
                 slope='500[L/min]',  # type: ignore
             )
 
-    def test_create_invalid_offset_units(self, unit_registry):
+    def test_create_invalid_offset_units(self):
         with pytest.raises(ValidationError):
             LinearCalibration(
                 date='2024-06-20',  # type: ignore
@@ -66,7 +66,7 @@ class TestLinearCalibration:
                 slope='500[L/min]',  # type: ignore
             )
 
-    def test_create_invalid_slope_units(self, unit_registry):
+    def test_create_invalid_slope_units(self):
         with pytest.raises(ValidationError):
             LinearCalibration(
                 date='2024-06-20',  # type: ignore

@@ -1,7 +1,6 @@
-import pint
 import pytest
+
 import mfclib.config
-from toolz import pipe
 
 
 @pytest.fixture(scope='function', autouse=True)
@@ -14,13 +13,3 @@ def reset_config():
     same initial state of the configuration.
     """
     mfclib.config.reset_to_default()
-
-
-@pytest.fixture
-def unit_registry():
-    ureg = pipe(
-        pint.UnitRegistry(),
-        mfclib.config.register_units,
-        mfclib.config.configure_unit_registry,
-    )
-    return ureg

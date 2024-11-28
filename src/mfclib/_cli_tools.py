@@ -42,7 +42,7 @@ def ensure_mixture(mixture):
 
 def _validate_quantity(ctx, param, value):
     try:
-        ureg = mfclib.config.unitRegistry()
+        ureg = mfclib.config.unit_registry()
         return ureg.Quantity(value)
     except ValueError:
         raise click.BadParameter(f"Could not convert {value} to a number or quantity.")
