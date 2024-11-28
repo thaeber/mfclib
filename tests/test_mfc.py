@@ -10,7 +10,7 @@ from mfclib.mixture import Mixture
 
 class TestCalibration:
     def test_create_instance(self):
-        ureg = mfclib.unitRegistry()
+        ureg = mfclib.unit_registry()
         c = Calibration(
             date=datetime.date(2024, 6, 20),
             gas=Mixture(composition=dict(NH3='1%', He='*')),
@@ -26,7 +26,7 @@ class TestCalibration:
         assert c.slope == ureg('500.0 L/min')
 
     def test_create_instance_from_strings(self):
-        ureg = mfclib.unitRegistry()
+        ureg = mfclib.unit_registry()
         c = Calibration(
             date='2024-06-20',  # type: ignore
             gas=dict(composition=dict(NH3='1%', He='*')),  # type: ignore

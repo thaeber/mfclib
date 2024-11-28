@@ -67,7 +67,7 @@ class TestBalanceMixture:
             _balance_mixture(dict(Ar='*', N2='*', NO=0.003))
 
     def test_with_pint_str(self):
-        ureg = mfclib.unitRegistry()
+        ureg = mfclib.unit_registry()
         feed = _balance_mixture(dict(Ar='*', NO='3000ppm'))
         assert feed == dict(Ar=ureg.Quantity(0.997), NO=ureg.Quantity(3000.0, 'ppm'))
         assert feed == dict(Ar=0.997, NO=0.003)
@@ -124,7 +124,7 @@ class TestMixture:
         assert dict(mfc) == dict(N2=0.79, O2=0.21)
 
     def test_model_dump_roundtrip_with_units(self):
-        ureg = mfclib.unitRegistry()
+        ureg = mfclib.unit_registry()
 
         original = Mixture(composition=dict(N2=0.79, O2='21%'), name='air')
         mfc = Mixture(**original.model_dump())

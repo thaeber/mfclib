@@ -50,7 +50,7 @@ def balanceSpeciesIndicator():
     return indicator
 
 
-def unitRegistry():
+def unit_registry():
     if ureg := _get_config_value(UNIT_REGISTRY_KEY):
         return ureg
     else:
