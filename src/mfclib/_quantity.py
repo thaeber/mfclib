@@ -6,6 +6,7 @@ from pint import Quantity, UndefinedUnitError
 from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema, core_schema
+from .config import unit_registry
 
 
 class PydanticQuantity(Quantity):
@@ -39,11 +40,12 @@ class PydanticQuantity(Quantity):
 
     @classmethod
     def _validate(cls, source_value, units=None):
+        ureg = unit_registry()
         if source_value is None:
             raise ValueError
         try:
             if units is not None:
-                value = Quantity(source_value, units=units)
+                value = ureg.Quantity(source_value, units=units)
             else:
                 if isinstance(source_value, str):
                     # here we try to split the magnitude from the unit in case
@@ -55,10 +57,10 @@ class PydanticQuantity(Quantity):
                     parsed = PydanticQuantity.parse_expression(source_value)
                     if parsed is not None:
                         source_value, units = parsed
-                value = Quantity(source_value, units=units)
+                value = ureg.Quantity(source_value, units=units)
         except UndefinedUnitError as ex:
             raise ValueError(f'Cannot convert "{source_value}" to quantity') from ex
-        if not isinstance(value, Quantity):
+        if not isinstance(value, ureg.Quantity):
             raise TypeError(f'pint.Quantity required ({value}, type = {type(value)})')
         if cls.restrict_dimensionality is not None:
             if not value.check(cls.restrict_dimensionality):
