@@ -1,60 +1,11 @@
 import datetime
 
-from pydantic import ValidationError
 import pytest
 
 import mfclib
 from mfclib.mfc import CalibrationBase
 from mfclib import LinearCalibration
 from mfclib.mixture import Mixture
-
-
-class TestCalibrationBase:
-    def test_validate_setpoint(self):
-        # always returns float
-        assert isinstance(
-            CalibrationBase.validate_setpoint('10%'),
-            float,
-        )
-        assert isinstance(
-            CalibrationBase.validate_setpoint(mfclib.unit_registry()('2%')),
-            float,
-        )
-
-        assert CalibrationBase.validate_setpoint(0.5) == 0.5
-        assert CalibrationBase.validate_setpoint('10%') == 0.1
-        assert CalibrationBase.validate_setpoint(mfclib.unit_registry()('2%')) == 0.02
-
-    def test_setpoint_out_of_range(self):
-        with pytest.raises(ValueError):
-            CalibrationBase.validate_setpoint('110%')
-
-    def test_setpoint_with_invalid_dimension(self):
-        with pytest.raises(ValueError):
-            CalibrationBase.validate_setpoint('1 L/min')
-
-    def test_validate_flowrate(self):
-        ureg = mfclib.unit_registry()
-
-        # always return pint Quantity
-        assert isinstance(CalibrationBase.validate_flowrate('1 ml/s'), ureg.Quantity)
-        assert isinstance(
-            CalibrationBase.validate_flowrate(ureg.Quantity(3.2, 'm^3/h')),
-            ureg.Quantity,
-        )
-
-        assert CalibrationBase.validate_flowrate('1 L/s') == ureg.Quantity(1.0, 'L/s')
-
-    def test_validate_flowrate_fails_on_invalid_units(self):
-        with pytest.raises(ValueError):
-            CalibrationBase.validate_flowrate('1 m/s')
-
-        with pytest.raises(ValueError):
-            CalibrationBase.validate_flowrate(1.0)
-
-    def test_validate_flowrate_fails_on_negative_values(self):
-        with pytest.raises(ValueError):
-            CalibrationBase.validate_flowrate('-1.0 L/s')
 
 
 class TestLinearCalibration:
@@ -101,3 +52,147 @@ class TestLinearCalibration:
 
         ureg = mfclib.unit_registry()
         assert c.setpoint_to_flowrate(0.0) == ureg('10ml/min')
+
+    def test_setpoint_to_flowrate(self):
+        c = LinearCalibration(
+            date='2024-06-20',
+            gas=dict(N2='*'),
+            temperature='273K',
+            offset='10ml/min',
+            slope='1.5L/min',
+        )
+
+        ureg = mfclib.unit_registry()
+        assert c.setpoint_to_flowrate(0.0).m_as('ml/min') == pytest.approx(10.0)
+        assert c.setpoint_to_flowrate(0.5).m_as('ml/min') == pytest.approx(760.0)
+        assert c.setpoint_to_flowrate(1.0).m_as('ml/min') == pytest.approx(1510.0)
+
+    def test_setpoint_to_flowrate_with_different_gas(self):
+        c = LinearCalibration(
+            date='2024-06-20',
+            gas=dict(N2='*'),
+            temperature='273K',
+            offset='10ml/min',
+            slope='1.5L/min',
+        )
+
+        gas = Mixture(composition=dict(CO2='*'))
+        assert c.setpoint_to_flowrate(0.5, gas=gas).m_as('ml/min') == pytest.approx(
+            760.0 * 0.740
+        )
+
+    def test_setpoint_to_flowrate_with_different_temperature(self):
+        c = LinearCalibration(
+            date='2024-06-20',
+            gas=dict(N2='*'),
+            temperature='300K',
+            offset='10ml/min',
+            slope='1.5L/min',
+        )
+
+        assert c.setpoint_to_flowrate(0.5, temperature='450K').m_as(
+            'ml/min'
+        ) == pytest.approx(1.5 * 760.0)
+
+    def test_setpoint_to_flowrate_with_invalid_setpoint(self):
+        c = LinearCalibration(
+            date='2024-06-20',
+            gas=dict(N2='*'),
+            temperature='273K',
+            offset='10ml/min',
+            slope='1.5L/min',
+        )
+
+        with pytest.raises(ValueError):
+            c.setpoint_to_flowrate('110%')
+
+        with pytest.raises(ValueError):
+            c.setpoint_to_flowrate('-10%')
+
+    def test_setpoint_to_flowrate_with_invalid_temperature(self):
+        c = LinearCalibration(
+            date='2024-06-20',
+            gas=dict(N2='*'),
+            temperature='273K',
+            offset='10ml/min',
+            slope='1.5L/min',
+        )
+
+        with pytest.raises(ValueError):
+            c.setpoint_to_flowrate(0.5, temperature='-1K')
+
+        with pytest.raises(ValueError):
+            c.setpoint_to_flowrate(0.5, temperature='100')
+
+    def test_flowrate_to_setpoint(self):
+        c = LinearCalibration(
+            date='2024-06-20',
+            gas=dict(N2='*'),
+            temperature='273K',
+            offset='10ml/min',
+            slope='1.5L/min',
+        )
+
+        ureg = mfclib.unit_registry()
+        assert c.flowrate_to_setpoint('10ml/min') == pytest.approx(0.0)
+        assert c.flowrate_to_setpoint('760ml/min') == pytest.approx(0.5)
+        assert c.flowrate_to_setpoint('1510ml/min') == pytest.approx(1.0)
+
+    def test_flowrate_to_setpoint_with_different_gas(self):
+        c = LinearCalibration(
+            date='2024-06-20',
+            gas=dict(N2='*'),
+            temperature='273K',
+            offset='10ml/min',
+            slope='1.5L/min',
+        )
+
+        ureg = mfclib.unit_registry()
+        gas = Mixture(composition=dict(CO2='*'))
+        assert c.flowrate_to_setpoint(
+            0.740 * 760 * ureg('ml/min'), gas=gas
+        ) == pytest.approx(0.5)
+
+    def test_flowrate_to_setpoint_with_different_temperature(self):
+        c = LinearCalibration(
+            date='2024-06-20',
+            gas=dict(N2='*'),
+            temperature='300K',
+            offset='0ml/min',
+            slope='1.5L/min',
+        )
+
+        ureg = mfclib.unit_registry()
+        assert c.flowrate_to_setpoint('1.5L/min', temperature='450K') == pytest.approx(
+            2.0 / 3.0
+        )
+
+    def test_flowrate_to_setpoint_with_invalid_flowrate(self):
+        c = LinearCalibration(
+            date='2024-06-20',
+            gas=dict(N2='*'),
+            temperature='273K',
+            offset='10ml/min',
+            slope='1.5L/min',
+        )
+
+        with pytest.raises(ValueError):
+            c.flowrate_to_setpoint('1 m/s')
+
+        with pytest.raises(ValueError):
+            c.flowrate_to_setpoint('-10ml/min')
+
+    def test_flowrate_to_setpoint_with_invalid_temperature(self):
+        c = LinearCalibration(
+            date='2024-06-20',
+            gas=dict(N2='*'),
+            temperature='273K',
+            offset='10ml/min',
+            slope='1.5L/min',
+        )
+
+        with pytest.raises(ValueError):
+            c.flowrate_to_setpoint('760ml/min', temperature='-1K')
+
+        with pytest.raises(ValueError):
+            c.flowrate_to_setpoint('760ml/min', temperature='100')

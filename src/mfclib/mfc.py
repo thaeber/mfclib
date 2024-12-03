@@ -1,13 +1,13 @@
-from abc import abstractmethod
 import datetime
+from abc import abstractmethod
 from typing import cast
 
 import pint
 import pydantic
 
+from . import tools, unit_registry
 from ._quantity import FlowRateQ, TemperatureQ
 from .mixture import Mixture, MixtureType
-from . import unit_registry
 
 
 class CalibrationBase(pydantic.BaseModel):
@@ -20,88 +20,19 @@ class CalibrationBase(pydantic.BaseModel):
     def check_composition(cls, value):
         return Mixture.create(value)
 
-    @staticmethod
-    def validate_setpoint(setpoint: str | float | pint.Quantity):
-        ureg = unit_registry()
-        value = ureg.Quantity(setpoint)
-        value = cast(pint.Quantity, value)  # just to please type checkers
-
-        # check that setpoint is dimensionless
-        if not value.check('[]'):
-            raise ValueError(f'Setpoint must be dimensionless, got: {setpoint}')
-
-        value = value.m_as('')
-
-        # check that magnitude is between 0 and 1
-        if not (0.0 <= value <= 1.0):
-            raise ValueError(
-                f'Setpoint must be between 0 (0%) and 1 (100%), received: {setpoint}'
-            )
-
-        return float(value)
-
-    @staticmethod
-    def validate_flowrate(flowrate: str | pint.Quantity):
-        ureg = unit_registry()
-        value = ureg.Quantity(flowrate)
-        value = cast(pint.Quantity, value)  # just to please type checkers
-
-        # check dimensions of flowrate
-        if not value.check('[volume]/[time]'):
-            raise ValueError(
-                f'Flowrate must have dimensions of [volume]/[time], got: {flowrate}'
-            )
-
-        # ensure value is positive
-        if value.magnitude < 0:
-            raise ValueError(f'Flow rate must be zero or positive, got: {flowrate}')
-
-        return value
-
-    @staticmethod
-    def validate_temperature(temperature: str | pint.Quantity):
-        ureg = unit_registry()
-        value = ureg.Quantity(temperature)
-        value = cast(pint.Quantity, value)  # just to please type checkers
-
-        # check dimensions of flowrate
-        if not value.check('[temperature]'):
-            raise ValueError(
-                f'Temperature must have dimensions of [temperature], got: {temperature}'
-            )
-
-        # convert to Kelvin to avoid errors caused by ambiguous
-        # operations with offset units
-        value = value.to('kelvin')
-
-        return value
-
-    @abstractmethod
     def setpoint_to_flowrate(
         self,
         setpoint: str | float | pint.Quantity,
         gas: None | MixtureType = None,
         temperature: None | str | pint.Quantity = None,
     ):
-        pass
-
-    @abstractmethod
-    def flowrate_to_setpoint(self, flowrate: pint.Quantity):
-        pass
-
-
-class LinearCalibration(CalibrationBase):
-    offset: FlowRateQ
-    slope: FlowRateQ
-
-    def setpoint_to_flowrate(
-        self,
-        setpoint: str | float | pint.Quantity,
-        gas: None | MixtureType = None,
-        temperature: None | str | pint.Quantity = None,
-    ):
+        ureg = unit_registry()
         # check input
-        setpoint = self.validate_setpoint(setpoint)
+        setpoint = tools.validate_range(
+            tools.validate_dimension(setpoint, '[]'),
+            min_value=0,
+            max_value=1,
+        )
         if gas is None:
             gas = self.gas
         else:
@@ -109,12 +40,79 @@ class LinearCalibration(CalibrationBase):
         if temperature is None:
             temperature = self.temperature
         else:
-            self.validate_temperature(temperature)
+            temperature = tools.validate_range(
+                tools.validate_dimension(
+                    temperature, '[temperature]', conversion=TemperatureQ
+                ),
+                min_value=0.0 * ureg.kelvin,
+            )
 
-        # calculate
+        # calculate flowrate
+        flowrate = self._impl_setpoint_to_flowrate(setpoint)
 
-    def flowrate_to_setpoint(self, flowrate: pint.Quantity):
+        # account for different calibration gas
+        flowrate *= gas.cf / self.gas.cf
+
+        # account for different temperature
+        flowrate *= temperature / self.temperature
+
+        return flowrate
+
+    @abstractmethod
+    def _impl_setpoint_to_flowrate(self, setpoint: pint.Quantity) -> pint.Quantity:
         pass
+
+    def flowrate_to_setpoint(
+        self,
+        flowrate: str | pint.Quantity,
+        gas: None | MixtureType = None,
+        temperature: None | str | pint.Quantity = None,
+    ):
+        ureg = unit_registry()
+        # check input
+        flowrate = tools.validate_dimension(flowrate, '[volume]/[time]')
+        if gas is None:
+            gas = self.gas
+        else:
+            gas = Mixture.create(gas)
+        if temperature is None:
+            temperature = self.temperature
+        else:
+            temperature = tools.validate_range(
+                tools.validate_dimension(
+                    temperature, '[temperature]', conversion=TemperatureQ
+                ),
+                min_value=0.0 * ureg.kelvin,
+            )
+
+        # account for different calibration gas
+        flowrate *= self.gas.cf / gas.cf
+
+        # account for different temperature
+        flowrate *= self.temperature / temperature
+
+        # calculate setpoint
+        setpoint = self._impl_flowrate_to_setpoint(flowrate)
+
+        # ensure setpoint is between 0 and 1
+        setpoint = tools.validate_range(setpoint, min_value=0, max_value=1)
+
+        return setpoint
+
+    @abstractmethod
+    def _impl_flowrate_to_setpoint(self, flowrate: pint.Quantity) -> pint.Quantity:
+        pass
+
+
+class LinearCalibration(CalibrationBase):
+    offset: FlowRateQ
+    slope: FlowRateQ
+
+    def _impl_setpoint_to_flowrate(self, setpoint: pint.Quantity) -> pint.Quantity:
+        return self.offset + setpoint * self.slope
+
+    def _impl_flowrate_to_setpoint(self, flowrate: pint.Quantity):
+        return (flowrate - self.offset) / self.slope
 
 
 class MFC(pydantic.BaseModel):
