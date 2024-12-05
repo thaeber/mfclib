@@ -109,3 +109,7 @@ class PressureQ(PydanticQuantity):
 
 class FlowRateQ(PydanticQuantity):
     restrict_dimensionality = '[volume]/[time]'
+
+
+class VoltageQ(PydanticQuantity):
+    restrict_dimensionality = '[voltage]'

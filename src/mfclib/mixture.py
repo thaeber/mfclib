@@ -108,7 +108,22 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
         if isinstance(mixture, Mixture):
             return mixture
         else:
-            return Mixture(composition=mixture, strict=strict, balance=balance)
+            match mixture:
+                case {'name': name, 'composition': composition}:
+                    return Mixture(
+                        name=name,
+                        composition=composition,
+                        strict=strict,
+                        balance=balance,
+                    )
+                case {'composition': composition}:
+                    return Mixture(
+                        composition=composition,
+                        strict=strict,
+                        balance=balance,
+                    )
+                case _:
+                    return Mixture(composition=mixture, strict=strict, balance=balance)
 
     @pydantic.model_validator(mode='after')
     def check_name(self):

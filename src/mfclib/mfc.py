@@ -1,12 +1,12 @@
 import datetime
 from abc import abstractmethod
-from typing import cast
+from typing import Annotated, List, Literal, Optional, Union, cast
 
 import pint
 import pydantic
 
 from . import tools, unit_registry
-from ._quantity import FlowRateQ, TemperatureQ
+from ._quantity import FlowRateQ, TemperatureQ, VoltageQ
 from .mixture import Mixture, MixtureType
 
 
@@ -23,6 +23,7 @@ class CalibrationBase(pydantic.BaseModel):
     def setpoint_to_flowrate(
         self,
         setpoint: str | float | pint.Quantity,
+        *,
         gas: None | MixtureType = None,
         temperature: None | str | pint.Quantity = None,
     ):
@@ -55,6 +56,7 @@ class CalibrationBase(pydantic.BaseModel):
 
         # account for different temperature
         flowrate *= temperature / self.temperature
+        flowrate = cast(pint.Quantity, flowrate)
 
         return flowrate
 
@@ -65,6 +67,7 @@ class CalibrationBase(pydantic.BaseModel):
     def flowrate_to_setpoint(
         self,
         flowrate: str | pint.Quantity,
+        *,
         gas: None | MixtureType = None,
         temperature: None | str | pint.Quantity = None,
     ):
@@ -97,6 +100,7 @@ class CalibrationBase(pydantic.BaseModel):
         # ensure setpoint is between 0 and 1
         setpoint = tools.validate_range(setpoint, min_value=0, max_value=1)
 
+        setpoint = cast(pint.Quantity, setpoint)
         return setpoint
 
     @abstractmethod
@@ -105,6 +109,7 @@ class CalibrationBase(pydantic.BaseModel):
 
 
 class LinearCalibration(CalibrationBase):
+    method: Literal['linear'] = 'linear'
     offset: FlowRateQ
     slope: FlowRateQ
 
@@ -115,6 +120,83 @@ class LinearCalibration(CalibrationBase):
         return (flowrate - self.offset) / self.slope
 
 
+class MFCInfo(pydantic.BaseModel):
+    manufacturer: Optional[str] = None
+    make: Optional[str] = None
+    serial_number: Optional[str] = None
+    specification: Optional[str] = None
+
+
+class MFCNoDevice(pydantic.BaseModel):
+    connection: Literal['None'] = 'None'
+
+
+class MFCAnalogDevice(pydantic.BaseModel):
+    connection: Literal['Analog'] = 'Analog'
+    max_output_voltage: VoltageQ
+    max_input_voltage: VoltageQ
+
+
+class MFCFlowBusDevice(pydantic.BaseModel):
+    connection: Literal['FlowBus'] = 'FlowBus'
+
+
+CalibrationType = Annotated[
+    Union[LinearCalibration], pydantic.Field(discriminator='method')
+]
+
+CalibrationSelector = Union[int, Literal['latest']]
+
+
 class MFC(pydantic.BaseModel):
-    gas: Mixture
-    calibration: LinearCalibration
+    name: str
+    info: Optional[MFCInfo] = None
+    calibrations: List[CalibrationType]
+    device: Optional[Union[MFCAnalogDevice, MFCFlowBusDevice]] = pydantic.Field(
+        discriminator='connection', default=None
+    )
+
+    def get_calibration(
+        self, selector: CalibrationSelector = 'latest'
+    ) -> CalibrationBase:
+        if selector == 'latest':
+            calibrations = sorted(self.calibrations, key=lambda c: c.date)
+            return calibrations[-1]
+        return self.calibrations[selector]
+
+    def setpoint_to_flowrate(
+        self,
+        setpoint: str | float | pint.Quantity,
+        gas: None | MixtureType = None,
+        temperature: None | str | pint.Quantity = None,
+        calibration: CalibrationSelector = 'latest',
+    ):
+        c = self.get_calibration(calibration)
+        return c.setpoint_to_flowrate(setpoint, gas=gas, temperature=temperature)
+
+    def flowrate_to_setpoint(
+        self,
+        flowrate: str | pint.Quantity,
+        gas: None | MixtureType = None,
+        temperature: None | str | pint.Quantity = None,
+        calibration: CalibrationSelector = 'latest',
+    ):
+        c = self.get_calibration(calibration)
+        return c.flowrate_to_setpoint(flowrate, gas=gas, temperature=temperature)
+
+    # @pydantic.field_validator('gas', mode='before')
+    # @classmethod
+    # def check_composition(cls, value):
+    #     return Mixture.create(value)
+
+
+class MFCDriverBase(pydantic.BaseModel):
+    name: str
+
+
+class MKSPAC100ModbusDriver(MFCDriverBase):
+    protocol: Literal['MKS-PAC100-Modbus'] = 'MKS-PAC100-Modbus'
+
+
+class FlowBusDriver(MFCDriverBase):
+    protocol: Literal['FlowBus'] = 'FlowBus'

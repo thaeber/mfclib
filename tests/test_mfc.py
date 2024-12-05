@@ -196,3 +196,127 @@ class TestLinearCalibration:
 
         with pytest.raises(ValueError):
             c.flowrate_to_setpoint('760ml/min', temperature='100')
+
+
+class TestMFC:
+    def test_create_instance(self):
+        mfc = mfclib.MFC(
+            name='MFC-1',
+            calibrations=[
+                LinearCalibration(
+                    date='2024-06-20',
+                    gas=dict(N2='*'),
+                    temperature='273K',
+                    offset='10ml/min',
+                    slope='1.5L/min',
+                )
+            ],
+        )
+
+        assert isinstance(mfc, mfclib.MFC)
+        assert mfc.name == 'MFC-1'
+
+    def test_create_instance_from_dict(self):
+        mfc = mfclib.MFC.model_validate(
+            dict(
+                name='MFC-1',
+                calibrations=[
+                    dict(
+                        date='2024-06-20',
+                        gas=dict(N2='*'),
+                        temperature='273K',
+                        method='linear',
+                        offset='10ml/min',
+                        slope='1.5L/min',
+                    )
+                ],
+            )
+        )
+
+    def test_dump_and_validate_roundtrip(self):
+        mfc = mfclib.MFC(
+            name='MFC-1',
+            calibrations=[
+                LinearCalibration(
+                    date='2024-06-20',
+                    gas=dict(N2='*'),
+                    temperature='273K',
+                    offset='10ml/min',
+                    slope='1.5L/min',
+                )
+            ],
+        )
+
+        data = mfc.model_dump()
+        mfc2 = mfclib.MFC.model_validate(data)
+        assert mfc == mfc2
+
+    def test_current_get_calibration_latest(self):
+        mfc = mfclib.MFC(
+            name='MFC-1',
+            calibrations=[
+                LinearCalibration(
+                    date='2023-01-01',
+                    gas=dict(N2='*'),
+                    temperature='273K',
+                    offset='10ml/min',
+                    slope='1.5L/min',
+                ),
+                LinearCalibration(
+                    date='2024-06-20',
+                    gas=dict(N2='*'),
+                    temperature='273K',
+                    offset='10ml/min',
+                    slope='1.5L/min',
+                ),
+            ],
+        )
+
+        assert mfc.get_calibration('latest').date == datetime.date(2024, 6, 20)
+
+    def test_current_get_calibration_by_index(self):
+        mfc = mfclib.MFC(
+            name='MFC-1',
+            calibrations=[
+                LinearCalibration(
+                    date='2023-01-01',
+                    gas=dict(N2='*'),
+                    temperature='273K',
+                    offset='10ml/min',
+                    slope='1.5L/min',
+                ),
+                LinearCalibration(
+                    date='2024-06-20',
+                    gas=dict(N2='*'),
+                    temperature='273K',
+                    offset='10ml/min',
+                    slope='1.5L/min',
+                ),
+            ],
+        )
+
+        assert mfc.get_calibration(0).date == datetime.date(2023, 1, 1)
+
+    def test_current_calibration_invalid_index(self):
+        mfc = mfclib.MFC(
+            name='MFC-1',
+            calibrations=[
+                LinearCalibration(
+                    date='2023-01-01',
+                    gas=dict(N2='*'),
+                    temperature='273K',
+                    offset='10ml/min',
+                    slope='1.5L/min',
+                ),
+                LinearCalibration(
+                    date='2024-06-20',
+                    gas=dict(N2='*'),
+                    temperature='273K',
+                    offset='10ml/min',
+                    slope='1.5L/min',
+                ),
+            ],
+        )
+
+        with pytest.raises(IndexError):
+            _ = mfc.get_calibration(2)
