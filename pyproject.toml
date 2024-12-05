@@ -4,9 +4,7 @@ version = "0.2.3"
 description = "A small Python module to calculate flow rates for gas mixtures."
 authors = ["Thomas Haeber <thomas.haeber@kit.edu>"]
 readme = "README.md"
-packages = [
-    { include = "mfclib", from = "src" },
-]
+packages = [{ include = "mfclib", from = "src" }]
 
 [tool.poetry.scripts]
 mfc = 'mfclib.cli:safe_cli'
@@ -22,6 +20,7 @@ pydantic = "^2.1"
 ruamel-yaml = "^0.17.32"
 pandas = "^2.0"
 deprecation = "^2.1.0"
+omegaconf = "^2.3"
 
 
 [tool.poetry.group.dev.dependencies]

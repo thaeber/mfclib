@@ -3,6 +3,7 @@ import textwrap
 import warnings
 from typing import (
     Any,
+    Dict,
     Iterable,
     Iterator,
     List,
@@ -29,7 +30,7 @@ MixtureType: TypeAlias = 'Mixture' | MixtureMapping
 
 
 def _convert_value(
-    value: SupportsFloat,
+    value: str | SupportsFloat,
 ):
     if value == balanceSpeciesIndicator():
         return value
@@ -98,9 +99,31 @@ def ensure_mixture_type(mixture: MixtureType, *, strict=True, balance=True):
 
 class Mixture(pydantic.BaseModel, collections.abc.Mapping):
     name: Optional[str] = None
-    composition: dict[str, Any]
+    composition: Mapping[str, Any]
     strict: bool = True
     balance: bool = True
+
+    @staticmethod
+    def create(mixture: MixtureType, *, strict=True, balance=True):
+        if isinstance(mixture, Mixture):
+            return mixture
+        else:
+            match mixture:
+                case {'name': name, 'composition': composition}:
+                    return Mixture(
+                        name=name,
+                        composition=composition,
+                        strict=strict,
+                        balance=balance,
+                    )
+                case {'composition': composition}:
+                    return Mixture(
+                        composition=composition,
+                        strict=strict,
+                        balance=balance,
+                    )
+                case _:
+                    return Mixture(composition=mixture, strict=strict, balance=balance)
 
     @pydantic.model_validator(mode='after')
     def check_name(self):

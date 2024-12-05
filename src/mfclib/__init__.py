@@ -1,10 +1,9 @@
 from . import config
 from .cf import calculate_CF, get_CF_table
 from .config import unit_registry
-from .mfc import Calibration
+from .mfc import MFC, LinearCalibration
 from .mixture import MixtureCollection  # Supply,
 from .mixture import Mixture, ensure_mixture_type, supply_proportions_for_mixture
-
 from .version import __version__
 
 # list of permanent imports to prevent `pre-commit` from removing as
@@ -19,5 +18,6 @@ __all__ = [
     MixtureCollection,
     supply_proportions_for_mixture,
     ensure_mixture_type,
-    Calibration,
+    LinearCalibration,
+    MFC,
 ]  # type: ignore

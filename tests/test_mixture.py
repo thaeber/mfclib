@@ -123,6 +123,14 @@ class TestMixture:
         assert mfc.composition == dict(N2=0.79, O2=0.21)
         assert dict(mfc) == dict(N2=0.79, O2=0.21)
 
+    def test_model_dump_roundtrip_with_validation(self):
+        original = Mixture(composition=dict(N2=0.79, O2=0.21), name='air')
+        data = original.model_dump()
+        mfc = Mixture.model_validate(data)
+        assert mfc.name == 'air'
+        assert mfc.composition == dict(N2=0.79, O2=0.21)
+        assert dict(mfc) == dict(N2=0.79, O2=0.21)
+
     def test_model_dump_roundtrip_with_units(self):
         ureg = mfclib.unit_registry()
 
@@ -146,6 +154,35 @@ class TestMixture:
     def test_unbalanced_mixture_not_allowed(self):
         with pytest.raises(ValueError):
             _ = Mixture(composition=dict(NO='3000ppm', Ar='*', He='*'))
+
+    def test_create_with_dict(self):
+        mixture = Mixture.create({'N2': 0.79, 'O2': 0.21})
+        assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
+        assert mixture.name == 'N2/O2'
+
+    def test_create_with_mixture_instance(self):
+        original = Mixture(composition={'N2': 0.79, 'O2': 0.21}, name='air')
+        mixture = Mixture.create(original)
+        assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
+        assert mixture.name == 'air'
+
+    def test_create_with_name_and_composition(self):
+        mixture = Mixture.create(
+            {'name': 'air', 'composition': {'N2': 0.79, 'O2': 0.21}}
+        )
+        assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
+        assert mixture.name == 'air'
+
+    def test_create_with_composition_only(self):
+        mixture = Mixture.create({'composition': {'N2': 0.79, 'O2': 0.21}})
+        assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
+        assert mixture.name == 'N2/O2'
+
+    def test_create_with_strict_and_balance(self):
+        mixture = Mixture.create({'N2': 0.79, 'O2': 0.21}, strict=False, balance=False)
+        assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
+        assert mixture.strict is False
+        assert mixture.balance is False
 
 
 class TestProportionsForMixture:
