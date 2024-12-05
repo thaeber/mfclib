@@ -6,7 +6,7 @@ import pint
 import pydantic
 
 from . import tools, unit_registry
-from ._quantity import FlowRateQ, TemperatureQ, VoltageQ
+from ._quantity import FlowRateQ, TemperatureQ, ElectricPotentialQ
 from .mixture import Mixture, MixtureType
 
 
@@ -124,7 +124,7 @@ class MFCInfo(pydantic.BaseModel):
     manufacturer: Optional[str] = None
     make: Optional[str] = None
     serial_number: Optional[str] = None
-    specification: Optional[str] = None
+    specifications: Optional[str] = None
 
 
 class MFCNoDevice(pydantic.BaseModel):
@@ -133,8 +133,8 @@ class MFCNoDevice(pydantic.BaseModel):
 
 class MFCAnalogDevice(pydantic.BaseModel):
     connection: Literal['Analog'] = 'Analog'
-    max_output_voltage: VoltageQ
-    max_input_voltage: VoltageQ
+    max_output_voltage: ElectricPotentialQ
+    max_input_voltage: ElectricPotentialQ
 
 
 class MFCFlowBusDevice(pydantic.BaseModel):
@@ -188,15 +188,3 @@ class MFC(pydantic.BaseModel):
     # @classmethod
     # def check_composition(cls, value):
     #     return Mixture.create(value)
-
-
-class MFCDriverBase(pydantic.BaseModel):
-    name: str
-
-
-class MKSPAC100ModbusDriver(MFCDriverBase):
-    protocol: Literal['MKS-PAC100-Modbus'] = 'MKS-PAC100-Modbus'
-
-
-class FlowBusDriver(MFCDriverBase):
-    protocol: Literal['FlowBus'] = 'FlowBus'

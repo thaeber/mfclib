@@ -1,6 +1,7 @@
 import datetime
 
 import pytest
+from omegaconf import OmegaConf
 
 import mfclib
 from mfclib.mfc import CalibrationBase
@@ -320,3 +321,42 @@ class TestMFC:
 
         with pytest.raises(IndexError):
             _ = mfc.get_calibration(2)
+
+    def test_load_mfc_config_from_yaml(self):
+        yaml = """
+            name: Device/MFC/Brooks01
+            info:
+              manufacturer: Brooks
+              make: 5850E (Analog)
+              serial_number: T63185/004
+              specifications: "2 L/min Ar, 4 bar"
+            calibrations:
+              - date: 2024-06-20
+                gas:
+                    N2: "*"
+                temperature: 20 degC
+                method: linear
+                offset: 0 ml/min
+                slope: 2.0 L/min
+            device:
+              connection: Analog
+              max_output_voltage: 5V
+              max_input_voltage: 5V
+        """
+        config = OmegaConf.create(yaml)
+        mfc = mfclib.MFC.model_validate(OmegaConf.to_container(config, resolve=True))
+
+        ureg = mfclib.unit_registry()
+        assert mfc.name == 'Device/MFC/Brooks01'
+        assert mfc.info.manufacturer == 'Brooks'
+        assert mfc.info.make == '5850E (Analog)'
+        assert mfc.info.serial_number == 'T63185/004'
+        assert mfc.info.specifications == '2 L/min Ar, 4 bar'
+        assert mfc.calibrations[0].date == datetime.date(2024, 6, 20)
+        assert mfc.calibrations[0].gas == Mixture(composition=dict(N2='*'))
+        assert mfc.calibrations[0].temperature == 293.15 * ureg.kelvin
+        assert mfc.calibrations[0].offset == 0.0 * ureg.L / ureg.min
+        assert mfc.calibrations[0].slope == 2.0 * ureg.L / ureg.min
+        assert mfc.device.connection == 'Analog'
+        assert mfc.device.max_output_voltage == 5.0 * ureg.volt
+        assert mfc.device.max_input_voltage == 5.0 * ureg.volt

@@ -37,24 +37,31 @@ controllers:
       connection: FlowBus
 
 drivers:
-  - name: MKS
+  - name: MKSAnalog
     protocol: MKS-PAC100-Modbus
     connection:
       method: tcp/ip
       ip: 192.168.3.1
-    channels:
-      - id: 1
-        gas: {"N2": "*"}
-        mfc: Device/MFC/Brooks01
-        calibration: latest
-  - name: Bronkhorst
+  - name: FlowBus1
     protocol: FlowBus
     connection:
       method: serial
       port: COM4
       baudrate: 9600
-    channels:
-      - id: 4
-        gas: {"NH3": "1%", "He": "*"}
-        mfc: Device/MFC/Bronkhorst11
-        calibration: latest
+
+
+lines:
+  - name: MFC A
+    gas: {"N2": "*"}
+    device:
+      mfc: Device/MFC/Brooks01
+      calibration: latest
+      driver: MKSAnalog
+      channel: 1 
+  - name: MFC 4
+    gas: {"NH3": "1%", "He": "*"}
+    device:
+      mfc: Device/MFC/Bronkhorst11
+      calibration: latest
+      driver: FlowBus1
+      channel: 4
