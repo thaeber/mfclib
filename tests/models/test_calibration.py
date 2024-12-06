@@ -51,7 +51,7 @@ class TestLinearCalibration:
         ureg = mfclib.unit_registry()
         assert c.setpoint_to_flowrate(0.0) == ureg('10ml/min')
 
-    def test_setpoint_to_flowrate(self):
+    def test_setpoint_to_flowrate2(self):
         c = LinearCalibration(
             date='2024-06-20',
             gas=dict(N2='*'),
@@ -60,7 +60,7 @@ class TestLinearCalibration:
             slope='1.5L/min',
         )
 
-        ureg = mfclib.unit_registry()
+        mfclib.unit_registry()
         assert c.setpoint_to_flowrate(0.0).m_as('ml/min') == pytest.approx(10.0)
         assert c.setpoint_to_flowrate(0.5).m_as('ml/min') == pytest.approx(760.0)
         assert c.setpoint_to_flowrate(1.0).m_as('ml/min') == pytest.approx(1510.0)
@@ -131,7 +131,7 @@ class TestLinearCalibration:
             slope='1.5L/min',
         )
 
-        ureg = mfclib.unit_registry()
+        mfclib.unit_registry()
         assert c.flowrate_to_setpoint('10ml/min') == pytest.approx(0.0)
         assert c.flowrate_to_setpoint('760ml/min') == pytest.approx(0.5)
         assert c.flowrate_to_setpoint('1510ml/min') == pytest.approx(1.0)
@@ -160,7 +160,7 @@ class TestLinearCalibration:
             slope='1.5L/min',
         )
 
-        ureg = mfclib.unit_registry()
+        mfclib.unit_registry()
         assert c.flowrate_to_setpoint('1.5L/min', temperature='450K') == pytest.approx(
             2.0 / 3.0
         )

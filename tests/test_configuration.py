@@ -1,5 +1,3 @@
-import pytest
-
 import mfclib
 from mfclib.configuration import Config, get_configuration
 

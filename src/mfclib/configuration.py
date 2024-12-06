@@ -6,7 +6,6 @@ from typing import Annotated, Dict, List, Literal, Optional
 
 import pydantic
 from omegaconf import OmegaConf
-from rich.pretty import pretty_repr
 
 from mfclib._quantity import TimeQ
 from . import models
@@ -52,19 +51,8 @@ class LoggingConfig(pydantic.BaseModel):
 
     @pydantic.model_validator(mode='after')
     def check_formatting(self):
-        try:
-            self.directory.format(datetime.now())
-        except:
-            raise ValueError(
-                f'Cannot format directory name with current date/time: {self.directory}'
-            )
-        try:
-            self.filename.format(datetime.now())
-        except:
-            raise ValueError(
-                f'Cannot format directory name with current date/time: {self.filename}'
-            )
-        return self
+        self.directory.format(datetime.now())
+        self.filename.format(datetime.now())
 
 
 class AppLogging(pydantic.BaseModel):

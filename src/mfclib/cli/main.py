@@ -45,7 +45,7 @@ def run(ctx: click.Context, config_filename: str):
     # configure logging
     mode = AppLoggingMode.NONE
     match sys.argv:
-        case [_, 'ui', *rest]:
+        case [_, 'ui', *_]:
             mode = AppLoggingMode.NONE
         case [_, 'server', 'start']:
             mode = AppLoggingMode.SERVER

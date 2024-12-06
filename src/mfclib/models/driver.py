@@ -1,15 +1,18 @@
-from typing import Literal
+from ipaddress import IPv4Address
+from typing import Annotated, Literal
 
 import pydantic
 
+from .._quantity import TimeQ
 
-class ServerConfig(BaseModel):
+
+class ServerConfig(pydantic.BaseModel):
     ip: IPv4Address = IPv4Address('127.0.0.1')
     port: int = 50061
-    timeout: Annotated[TimeQ, Field(validate_default=True)] = '5s'
+    timeout: Annotated[TimeQ, pydantic.Field(validate_default=True)] = '5s'
 
 
-class SerialPortConfig(BaseModel):
+class SerialPortConfig(pydantic.BaseModel):
     port: str = 'COM1'
     baudRate: int = 19200
 

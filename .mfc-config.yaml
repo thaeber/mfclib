@@ -5,7 +5,7 @@ lines:
     #   mfc: Device/MFC/Brooks01
     #   calibration: latest
     #   driver: MKSAnalog
-    #   channel: 1 
+    #   channel: 1
   - name: MFC 4
     gas: {"NH3": "1%", "He": "*"}
     # device:
@@ -59,7 +59,7 @@ app_logging:
 #       connection: Analog
 #       max_output_voltage: 5V
 #       max_input_voltage: 5V
-      
+
 #   - name: Device/MFC/Bronkhorst11
 #     info:
 #       manufacturer: Bronkhorst
@@ -90,6 +90,3 @@ app_logging:
 #       method: serial
 #       port: COM4
 #       baudrate: 9600
-
-
-

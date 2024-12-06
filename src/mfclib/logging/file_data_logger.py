@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 class FileDataLogger:
-
     def __init__(self, cfg: LoggingConfig):
         self.cfg = cfg
         self.last_rotation: datetime = datetime.now()

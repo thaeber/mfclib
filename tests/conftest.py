@@ -1,8 +1,3 @@
-import pytest
-
-import mfclib.config
-
-
 # @pytest.fixture(scope='function', autouse=True)
 # def reset_config():
 #     """

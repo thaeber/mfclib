@@ -26,7 +26,7 @@ class TestMFC:
         assert mfc.name == 'MFC-1'
 
     def test_create_instance_from_dict(self):
-        mfc = mfclib.models.MFC.model_validate(
+        mfclib.models.MFC.model_validate(
             dict(
                 name='MFC-1',
                 calibrations=[

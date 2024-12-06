@@ -1,10 +1,6 @@
 import re
-from pathlib import Path
 
 import click
-import pandas as pd
-from rich import box
-from rich.table import Table
 
 from .. import models
 
