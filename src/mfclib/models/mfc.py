@@ -5,7 +5,8 @@ from typing import Annotated, List, Literal, Optional, Union, cast
 import pint
 import pydantic
 
-from . import tools, unit_registry
+from .. import tools
+from ..config import unit_registry
 from ._quantity import FlowRateQ, TemperatureQ, ElectricPotentialQ
 from .mixture import Mixture, MixtureType
 

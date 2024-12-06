@@ -1,0 +1,72 @@
+lines:
+  - name: MFC A
+    gas: {"N2": "*"}
+    # device:
+    #   mfc: Device/MFC/Brooks01
+    #   calibration: latest
+    #   driver: MKSAnalog
+    #   channel: 1 
+  - name: MFC 4
+    gas: {"NH3": "1%", "He": "*"}
+    # device:
+    #   mfc: Device/MFC/Bronkhorst11
+    #   calibration: latest
+    #   driver: FlowBus1
+    #   channel: 4
+  - name: MFC 5
+    gas: {"O2": "*"}
+    
+
+# controllers:
+#   - name: Device/MFC/Brooks01
+#     info:
+#       manufacturer: Brooks
+#       make: 5850E (Analog)
+#       serial_number: T63185/004
+#       specifications: "2 L/min Ar, 4 bar"
+#     calibrations:
+#       - date: 2024-06-20
+#         gas:
+#           N2: "*"
+#         temperature: 20 degC
+#         method: linear
+#         offset: 0 ml/min
+#         slope: 2.0 L/min
+#     device:
+#       connection: Analog
+#       max_output_voltage: 5V
+#       max_input_voltage: 5V
+      
+#   - name: Device/MFC/Bronkhorst11
+#     info:
+#       manufacturer: Bronkhorst
+#       make: ELFlow Select
+#       model: F-201CV-500-RGD-33-K
+#       serial_number: M23215384E
+#       specifications: "500 L/min N2, 4 bar"
+#     calibrations:
+#       - date: 2024-06-20
+#         gas:
+#           N2: "*"
+#         temperature: 20 degC
+#         method: linear
+#         offset: 0 ml/min
+#         slope: 500 L/min
+#     device:
+#       connection: FlowBus
+
+# drivers:
+#   - name: MKSAnalog
+#     protocol: MKS-PAC100-Modbus
+#     connection:
+#       method: tcp/ip
+#       ip: 192.168.3.1
+#   - name: FlowBus1
+#     protocol: FlowBus
+#     connection:
+#       method: serial
+#       port: COM4
+#       baudrate: 9600
+
+
+

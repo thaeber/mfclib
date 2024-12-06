@@ -3,7 +3,6 @@ import textwrap
 import warnings
 from typing import (
     Any,
-    Dict,
     Iterable,
     Iterator,
     List,
@@ -21,8 +20,8 @@ import pydantic
 import scipy.optimize
 from numpy.typing import NDArray
 
-from .cf import calculate_CF
-from .config import balanceSpeciesIndicator, unit_registry
+from ..cf import calculate_CF
+from ..config import balanceSpeciesIndicator, unit_registry
 
 AmountType: TypeAlias = SupportsFloat | Literal['*']
 MixtureMapping: TypeAlias = Mapping[str, AmountType]

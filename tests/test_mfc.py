@@ -4,9 +4,8 @@ import pytest
 from omegaconf import OmegaConf
 
 import mfclib
-from mfclib.mfc import CalibrationBase
-from mfclib import LinearCalibration
-from mfclib.mixture import Mixture
+from mfclib.models import Mixture, LinearCalibration
+from mfclib.models.mfc import CalibrationBase
 
 
 class TestLinearCalibration:
@@ -201,7 +200,7 @@ class TestLinearCalibration:
 
 class TestMFC:
     def test_create_instance(self):
-        mfc = mfclib.MFC(
+        mfc = mfclib.models.MFC(
             name='MFC-1',
             calibrations=[
                 LinearCalibration(

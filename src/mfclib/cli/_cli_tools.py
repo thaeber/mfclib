@@ -87,7 +87,7 @@ def load_source_gases(filename: None | str | Path = None):
 
 
 def save_source_gases(
-    gases: mfclib.MixtureCollection, filename: None | str | Path = None
+    gases: mfclib.models.MixtureCollection, filename: None | str | Path = None
 ):
     if not filename:
         filename = mfclib.config.sourceGasesFile()

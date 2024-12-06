@@ -1,9 +1,9 @@
 import pint
 import pytest
 
-from mfclib import Mixture, supply_proportions_for_mixture
+from mfclib.models import Mixture, supply_proportions_for_mixture
 import mfclib
-from mfclib.mixture import _balance_mixture, _convert_value
+from mfclib.models.mixture import _balance_mixture, _convert_value
 
 
 class TestConvertValue:

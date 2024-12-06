@@ -1,6 +1,6 @@
 import pytest
 
-from mfclib._quantity import TemperatureQ
+from mfclib.models._quantity import TemperatureQ
 from mfclib.config import unit_registry
 from mfclib.tools import pipe, validate_dimension, validate_range
 

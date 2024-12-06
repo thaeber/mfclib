@@ -1,4 +1,4 @@
-from mfclib import Mixture, MixtureCollection
+from mfclib.models import Mixture, MixtureCollection
 
 
 class TestMixtureCollection:
