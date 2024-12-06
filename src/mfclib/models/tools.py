@@ -3,7 +3,7 @@ from typing import Any, Callable, TypeVar
 
 import pint
 
-from .config import unit_registry
+from ..config import unit_registry
 from functools import partial, wraps
 
 

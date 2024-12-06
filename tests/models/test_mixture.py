@@ -111,6 +111,7 @@ class TestMixture:
 
     def test_model_dump_with_units(self):
         mfc = Mixture(composition=dict(N2=0.79, O2='21.0 %'), name='air')
+
         assert mfc.model_dump(exclude_defaults=True) == {
             'composition': {'N2': 0.79, 'O2': '21.0 %'},
             'name': 'air',

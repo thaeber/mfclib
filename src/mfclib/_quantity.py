@@ -6,7 +6,7 @@ from pint import Quantity, UndefinedUnitError
 from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema, core_schema
-from ..config import unit_registry
+from .config import unit_registry
 
 
 class PydanticQuantity(Quantity):
@@ -97,6 +97,10 @@ class PydanticQuantity(Quantity):
     ) -> JsonSchemaValue:
         # Use the same schema that would be used for `int`
         return handler(core_schema.int_schema())
+
+
+class TimeQ(PydanticQuantity):
+    restrict_dimensionality = '[time]'
 
 
 class TemperatureQ(PydanticQuantity):

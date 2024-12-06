@@ -15,7 +15,30 @@ lines:
     #   channel: 4
   - name: MFC 5
     gas: {"O2": "*"}
-    
+
+app_logging:
+  disable_logging: False
+  level: INFO
+  formatters:
+    simple:
+      format: "[%(asctime)s][%(levelname)s] %(message)s"
+      datefmt: "%Y-%m-%d %H:%M:%S"
+    rich:
+      format: "[%(thread)s] %(message)s"
+      datefmt: "%Y-%m-%d %H:%M:%S"
+  handlers:
+    client:
+      class: mfclib.logging.TimeStampedFileHandler
+      formatter: simple
+      filename: ".log/client/{0:%Y-%m-%d}/{0:%Y-%m-%dT%H-%M-%S}.log"
+      encoding: utf-8
+    server:
+      class: mfclib.logging.TimedRotatingFileHandler
+      formatter: simple
+      filename: ".log/server/server.log"
+      encoding: utf-8
+      when: "midnight"
+      interval: 1
 
 # controllers:
 #   - name: Device/MFC/Brooks01
