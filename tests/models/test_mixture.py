@@ -1,9 +1,9 @@
 import pint
 import pytest
 
-from mfclib import Mixture, supply_proportions_for_mixture
+from mfclib.models import Mixture, supply_proportions_for_mixture
 import mfclib
-from mfclib.mixture import _balance_mixture, _convert_value
+from mfclib.models.mixture import _balance_mixture, _convert_value
 
 
 class TestConvertValue:
@@ -111,6 +111,7 @@ class TestMixture:
 
     def test_model_dump_with_units(self):
         mfc = Mixture(composition=dict(N2=0.79, O2='21.0 %'), name='air')
+
         assert mfc.model_dump(exclude_defaults=True) == {
             'composition': {'N2': 0.79, 'O2': '21.0 %'},
             'name': 'air',
