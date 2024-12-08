@@ -3,7 +3,7 @@ from typing import Callable, TypeVar
 
 import pint
 
-from ..config import unit_registry
+from .config import unit_registry
 
 
 def pipe(value, *functions):

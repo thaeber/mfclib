@@ -53,6 +53,7 @@ class LoggingConfig(pydantic.BaseModel):
     def check_formatting(self):
         self.directory.format(datetime.now())
         self.filename.format(datetime.now())
+        return self
 
 
 class AppLogging(pydantic.BaseModel):
@@ -65,8 +66,55 @@ class AppLogging(pydantic.BaseModel):
 class Config(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(extra='forbid')
     lines: List[models.MFCLine]
+    controllers: List[models.MFC] = pydantic.Field(default_factory=list)
     logging: Optional[LoggingConfig] = None
     app_logging: Optional[AppLogging] = None
+
+    @pydantic.model_validator(mode='after')
+    def check_for_duplicated_controller_names(self):
+        # Check for duplicate names in controllers
+        controller_names = [controller.name for controller in self.controllers]
+        duplicates = {
+            name for name in controller_names if controller_names.count(name) > 1
+        }
+        if duplicates:
+            raise ValueError(
+                f'Duplicate controller names found: {", ".join(duplicates)}'
+            )
+        return self
+
+    @pydantic.model_validator(mode='after')
+    def check_for_duplicated_line_names(self):
+        # Check for duplicate names in lines
+        line_names = [line.name for line in self.lines]
+        duplicates = {name for name in line_names if line_names.count(name) > 1}
+        if duplicates:
+            raise ValueError(f'Duplicate line names found: {", ".join(duplicates)}')
+        return self
+
+    @pydantic.model_validator(mode='after')
+    def check_that_device_name_is_in_list_of_controllers(self):
+        # loop through lines and check if referenced MFC is in controllers
+        mfc_names = [mfc.name for mfc in self.controllers]
+        for line in self.lines:
+            if line.device is not None:
+                if line.device.mfc not in mfc_names:
+                    raise ValueError(
+                        f'MFC device "{line.device.mfc}" not found in controllers'
+                    )
+        return self
+
+    def get_mfc_for_line(self, line_name: str):
+        device = None
+        for line in self.lines:
+            if line.name == line_name:
+                device = line.device
+                break
+        if device is not None:
+            for mfc in self.controllers:
+                if mfc.name == device.mfc:
+                    return mfc
+        return None
 
 
 def get_configuration(

@@ -1,19 +1,22 @@
+from functools import partial
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, List
 
 import click
 import numpy as np
+import pandas as pd
 from rich import box
 from rich.console import Console
 from rich.table import Table
 
 import mfclib
-from ..configuration import Config
-from .._quantity import FlowRateQ, TemperatureQ
 
 from .. import models
+from .._quantity import FlowRateQ, TemperatureQ
+from ..configuration import Config
+from ..tools import pipe
 from ._cli_tools import validate_unbalanced_mixture
 from .main import run
 
@@ -119,9 +122,9 @@ def flowmix(
     emit_markdown: bool,
 ):
     """
-    Calculate flow rates of source gases to obtain a given gas mixture.
-    GASES_FILE contains the composition of source gases in TOML format
-    and MIXTURE_COMPOSITION defines the target mixture.
+    Calculate flow rates of source gases to obtain a given gas MIXTURE.
+    The available sources are defined in the configuration file (see --config
+    option of the base command `mfc`).
 
     Example:
 
@@ -155,9 +158,29 @@ def flowmix(
     # final mixture composition
     final_mixture = mix_sources(sources, source_fractions)
 
+    # gather results in DataFrame
+    df = pd.DataFrame()
+    df['gas'] = [line.gas.name for line in config.lines]
+    df['composition'] = [
+        ", ".join([f"{key}={value}" for key, value in line.gas.items()])
+        for line in config.lines
+    ]
+    df[f'flowrate @ {temperature}'] = [f for f in flow_rates]
+    df['line'] = [line.name for line in config.lines]
+    mfcs: List[None | models.MFC] = pipe(
+        config.lines,
+        partial(map, lambda line: config.get_mfc_for_line(line.name)),
+        list,
+    )
+    df['MFC'] = [mfc.name if mfc is not None else '' for mfc in mfcs]
+
     # output
     console.print(f"Calculating volumetric flow rates for: {mixture!r}")
     console.print(f'Target flow rate: {flowrate} @ {temperature}')
+
+    # emit gas lines
+    box_style = box.MARKDOWN if emit_markdown else box.SIMPLE
+    emit_table(console, df, box=box_style)
 
     # flow rates table
     table = Table(
@@ -218,3 +241,19 @@ def flowmix(
 
     if output:
         console.save_text(output)
+
+
+def emit_table(console, df, box=box.SIMPLE):
+    table = Table(
+        show_header=True,
+        header_style="bold",
+        show_footer=True,
+        row_styles=["dim", ""],
+        box=box,
+    )
+    for col in df.columns:
+        table.add_column(col)
+
+    for k, row in df.iterrows():
+        table.add_row(*[str(value) for value in row.values])
+    console.print(table)

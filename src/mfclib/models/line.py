@@ -1,10 +1,18 @@
+from typing import Literal, Optional, Union
 import pydantic
 from .mixture import Mixture
+from .mfc import CalibrationSelector
+
+
+class MFCDevice(pydantic.BaseModel):
+    mfc: str
+    calibration: CalibrationSelector = 'latest'
 
 
 class MFCLine(pydantic.BaseModel):
     name: str
     gas: Mixture
+    device: Optional[MFCDevice] = None
 
     @pydantic.field_validator('gas', mode='before')
     @classmethod

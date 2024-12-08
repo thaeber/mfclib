@@ -2,7 +2,7 @@ import pytest
 
 from mfclib._quantity import TemperatureQ
 from mfclib.config import unit_registry
-from mfclib.models.tools import pipe, validate_dimension, validate_range
+from mfclib.tools import pipe, validate_dimension, validate_range
 
 
 class TestValidateDimension:
