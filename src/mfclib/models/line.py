@@ -1,7 +1,10 @@
-from typing import Literal, Optional, Union
+from typing import List, Literal, Optional, Union
+
 import pydantic
+
+from .._quantity import FlowRateQ, TemperatureQ
+from .mfc import MFC, CalibrationSelector
 from .mixture import Mixture
-from .mfc import CalibrationSelector
 
 
 class MFCDevice(pydantic.BaseModel):

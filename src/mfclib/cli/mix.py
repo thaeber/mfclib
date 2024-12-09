@@ -1,8 +1,9 @@
 from functools import partial
+from itertools import starmap
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Any, List
+from typing import Any, Dict, List
 
 import click
 import numpy as np
@@ -15,8 +16,8 @@ import mfclib
 
 from .. import models
 from .._quantity import FlowRateQ, TemperatureQ
-from ..configuration import Config
-from ..tools import pipe
+from ..models.configuration import Config
+from ..tools import is_none, is_not_none, pipe, map_to_list, map_if, replace
 from ._cli_tools import validate_unbalanced_mixture
 from .main import run
 
@@ -29,17 +30,43 @@ class StatusFlag(Enum):
     WARNING = 3
     ERROR = 4
 
+    def __str__(self):
+        match self:
+            case StatusFlag.NONE:
+                return ''
+            case StatusFlag.OK:
+                return '[green1]:heavy_check_mark:[/green1]'
+            case StatusFlag.WARNING:
+                return '[orange1]:warning:[/orange1]'
+            case StatusFlag.ERROR:
+                return '[bold red1]:x:[/bold red1]'
+
+    def __repr__(self):
+        return self.__str__()
+
+
+def format_with_status(value: Any, status: StatusFlag):
+    match status:
+        case StatusFlag.NONE:
+            return f'{value}'
+        case StatusFlag.OK:
+            return f"[green1]:heavy_check_mark: {value}[/green1]"
+        case StatusFlag.WARNING:
+            return f"[orange1]:warning: {value}[/orange1]"
+        case StatusFlag.ERROR:
+            return f"[bold red1]:x: {value}[/bold red1]"
+
 
 def _format_status(value: Any, status: StatusFlag):
     match status:
         case StatusFlag.NONE:
             return f'{value}'
         case StatusFlag.OK:
-            return f"[green1]:heavy_check_mark:[/green1] {value}"
+            return f"[green1]:heavy_check_mark: {value}[/green1]"
         case StatusFlag.WARNING:
-            return f"[orange1]:warning:[/orange1] {value}"
+            return f"[orange1]:warning: {value}[/orange1]"
         case StatusFlag.ERROR:
-            return f"[bold red1]:x:[/bold red1] {value}"
+            return f"[bold red1]:x: {value}[/bold red1]"
 
 
 def _format(value, reference):
@@ -97,7 +124,7 @@ def mix_sources(sources, fractions):
 @click.option(
     "-T",
     "--temperature",
-    default="293K",
+    default="20°C",
     show_default=True,
     type=TemperatureQ,
     help="Temperature of mixed flow.",
@@ -165,22 +192,29 @@ def flowmix(
         ", ".join([f"{key}={value}" for key, value in line.gas.items()])
         for line in config.lines
     ]
-    df[f'flowrate @ {temperature}'] = [f for f in flow_rates]
-    df['line'] = [line.name for line in config.lines]
-    mfcs: List[None | models.MFC] = pipe(
-        config.lines,
-        partial(map, lambda line: config.get_mfc_for_line(line.name)),
+    df['flowrate'] = [f for f in flow_rates]
+    df['setpoint'] = pipe(
+        zip(config.lines, flow_rates),
+        partial(
+            starmap,
+            lambda line, value: config.flowrate_to_setpoint(line, value, temperature),
+        ),
+        partial(replace, is_none, format_with_status(np.nan, StatusFlag.WARNING)),
         list,
     )
-    df['MFC'] = [mfc.name if mfc is not None else '' for mfc in mfcs]
+    df['line'] = [line.name for line in config.lines]
+    df['MFC'] = pipe(
+        config.lines,
+        partial(map, config.get_mfc_by_line),
+        partial(map_if, is_not_none, lambda x: x.name),
+        partial(replace, is_none, format_with_status('missing', StatusFlag.WARNING)),
+        list,
+    )
+    footer = {f'flowrate': sum(flow_rates)}
 
     # output
     console.print(f"Calculating volumetric flow rates for: {mixture!r}")
     console.print(f'Target flow rate: {flowrate} @ {temperature}')
-
-    # emit gas lines
-    box_style = box.MARKDOWN if emit_markdown else box.SIMPLE
-    emit_table(console, df, box=box_style)
 
     # flow rates table
     table = Table(
@@ -239,20 +273,49 @@ def flowmix(
     )
     console.print(table)
 
+    # emit gas lines
+    box_style = box.MARKDOWN if emit_markdown else box.HORIZONTALS
+    emit_table(
+        console,
+        df,
+        box=box_style,
+        header={'flowrate': f'flowrate @ {temperature}'},
+        footer=footer,
+        justify={'flowrate': 'right', 'setpoint': 'right'},
+    )
+
     if output:
         console.save_text(output)
 
 
-def emit_table(console, df, box=box.SIMPLE):
+def emit_table(
+    console,
+    df,
+    header: Dict[str, Any] = None,
+    footer: Dict[str, Any] = None,
+    justify: Dict[str, Any] = None,
+    box=box.SIMPLE,
+):
     table = Table(
         show_header=True,
         header_style="bold",
-        show_footer=True,
-        row_styles=["dim", ""],
+        show_footer=footer is not None,
+        # row_styles=["dim", ""],
         box=box,
     )
+    if header is None:
+        header = {}
+    if footer is None:
+        footer = {}
+    if justify is None:
+        justify = {}
+
     for col in df.columns:
-        table.add_column(col)
+        table.add_column(
+            header.get(col, col),
+            footer=str(footer.get(col, '')),
+            justify=justify.get(col, 'left'),
+        )
 
     for k, row in df.iterrows():
         table.add_row(*[str(value) for value in row.values])

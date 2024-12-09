@@ -1,59 +1,23 @@
-from datetime import datetime
 import logging
 from os import PathLike
 from pathlib import Path
-from typing import Annotated, Dict, List, Literal, Optional
+from typing import List, Literal, Optional
 
 import pydantic
 from omegaconf import OmegaConf
 
-from mfclib._quantity import TimeQ
-from . import models
+from mfclib._quantity import FlowRateQ, TemperatureQ
+
+from .. import models
+from ..tools import first_or_default
+from .data_logging import DataLoggingConfig
+from .line import MFCLine
 
 logger = logging.getLogger(__name__)
 
 LogLevelType = Literal[
     'NOTSET', 'DEBUG', 'INFO', 'WARN', 'WARNING', 'ERROR', 'FATAL', 'CRITICAL'
 ]
-
-
-class LoggingConfig(pydantic.BaseModel):
-    directory: str = './output/{:%Y-%m-%d}'
-    filename: str = 'eurotherm-{:%Y-%m-%dT%H-%M-%S}.csv'
-    format: str = "%.6g"
-    separator: str = ";"
-    rotate_every: Annotated[TimeQ, pydantic.Field(validate_default=True)] = '1min'
-    write_interval: Annotated[TimeQ, pydantic.Field(validate_default=True)] = '10s'
-    columns: List[str] = [
-        'timestamp',
-        'processValue',
-        'workingOutput',
-        'workingSetpoint',
-    ]
-    units: Dict[str, str] = {
-        'processValue': 'K',
-        'workingOutput': '%',
-        'workingSetpoint': 'K',
-    }
-
-    @pydantic.model_validator(mode='after')
-    def check_time_intervals(self):
-        if self.write_interval >= self.rotate_every:
-            raise ValueError(
-                (
-                    f'The write interval of data packets '
-                    f'(write_interval={self.write_interval:~P}) must be '
-                    f'shorter than the rotation interval of data files '
-                    f'(rotate_every={self.rotate_every:~P})'
-                )
-            )
-        return self
-
-    @pydantic.model_validator(mode='after')
-    def check_formatting(self):
-        self.directory.format(datetime.now())
-        self.filename.format(datetime.now())
-        return self
 
 
 class AppLogging(pydantic.BaseModel):
@@ -67,7 +31,7 @@ class Config(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(extra='forbid')
     lines: List[models.MFCLine]
     controllers: List[models.MFC] = pydantic.Field(default_factory=list)
-    logging: Optional[LoggingConfig] = None
+    logging: Optional[DataLoggingConfig] = None
     app_logging: Optional[AppLogging] = None
 
     @pydantic.model_validator(mode='after')
@@ -104,17 +68,25 @@ class Config(pydantic.BaseModel):
                     )
         return self
 
-    def get_mfc_for_line(self, line_name: str):
-        device = None
-        for line in self.lines:
-            if line.name == line_name:
-                device = line.device
-                break
-        if device is not None:
-            for mfc in self.controllers:
-                if mfc.name == device.mfc:
-                    return mfc
-        return None
+    def get_mfc_by_name(self, name: str):
+        return first_or_default(lambda x: x.name == name, self.controllers, None)
+
+    def get_mfc_by_line(self, line: MFCLine):
+        if (line is not None) and (line.device is not None):
+            return self.get_mfc_by_name(line.device.mfc)
+
+    def flowrate_to_setpoint(
+        self, line: MFCLine, flowrate: FlowRateQ, temperature: TemperatureQ
+    ):
+        if mfc := self.get_mfc_by_line(line):
+            return mfc.flowrate_to_setpoint(
+                flowrate,
+                gas=line.gas,
+                temperature=temperature,
+                calibration=line.device.calibration,
+            ).to('percent')
+        else:
+            return None
 
 
 def get_configuration(

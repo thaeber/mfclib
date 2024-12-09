@@ -1,7 +1,9 @@
 import pytest
 
 import mfclib
-from mfclib.configuration import Config, get_configuration
+from mfclib._quantity import FlowRateQ, TemperatureQ
+from mfclib.models.configuration import Config, get_configuration
+from mfclib.models.line import MFCLine
 
 
 class TestGetConfiguration:
@@ -177,3 +179,93 @@ class TestGetConfiguration:
             ValueError, match='MFC device "Device/MFC/Unknown" not found in controllers'
         ):
             get_configuration(filename=config_file)
+
+
+class TestFlowrateToSetpoint:
+    def test_flowrate_to_setpoint_valid(self, tmp_path):
+        config_content = """
+        lines:
+          - name: MFC A
+            gas: {"N2": "*"}
+            device:
+              mfc: Device/MFC/Brooks01
+              calibration: latest
+          - name: MFC 4
+            gas: {"NH3": "1%", "He": "*"}
+            device:
+              mfc: Device/MFC/Bronkhorst11
+              calibration: latest
+        
+        controllers:
+          - name: Device/MFC/Brooks01
+            calibrations:
+              - date: 2024-06-20
+                gas:
+                  N2: "*"
+                temperature: 20 degC
+                method: linear
+                offset: 0 ml/min
+                slope: 2.0 L/min
+          - name: Device/MFC/Bronkhorst11
+            calibrations:
+              - date: 2024-06-20
+                gas:
+                  N2: "*"
+                temperature: 20 degC
+                method: linear
+                offset: 0 ml/min
+                slope: 500 mL/min
+        """
+        config_file = tmp_path / ".config.yaml"
+        config_file.write_text(config_content)
+
+        config = get_configuration(filename=config_file)
+
+        line = config.lines[0]
+        flowrate = FlowRateQ(1, "L/min")
+        temperature = TemperatureQ(20, "degC")
+        setpoint = config.flowrate_to_setpoint(line, flowrate, temperature)
+        assert setpoint.m_as('%') == pytest.approx(50.0)
+
+        line = config.lines[0]
+        flowrate = FlowRateQ(1, "L/min")
+        temperature = 2 * TemperatureQ(20, "degC").to("K")
+        setpoint = config.flowrate_to_setpoint(line, flowrate, temperature)
+        assert setpoint.m_as('%') == pytest.approx(25.0)
+
+        line = config.lines[1]
+        flowrate = FlowRateQ(0.2, "L/min")
+        temperature = TemperatureQ(20, "degC")
+        setpoint = config.flowrate_to_setpoint(line, flowrate, temperature)
+        assert setpoint.m_as('%') == pytest.approx(29.09, abs=0.01)
+
+    def test_flowrate_to_setpoint_line_without_device(self, tmp_path):
+        config_content = """
+        lines:
+          - name: MFC A
+            gas: {"N2": "*"}
+            device:
+              mfc: Device/MFC/Brooks01
+              calibration: latest
+        
+        controllers:
+          - name: Device/MFC/Brooks01
+            calibrations:
+              - date: 2024-06-20
+                gas:
+                  N2: "*"
+                temperature: 20 degC
+                method: linear
+                offset: 0 ml/min
+                slope: 2.0 L/min
+        """
+        config_file = tmp_path / '.config.yaml'
+        config_file.write_text(config_content)
+
+        config = get_configuration(filename=config_file)
+        line = MFCLine(name='Invalid Line', gas={'N2': '*'}, device=None)
+        flowrate = FlowRateQ(1, 'L/min')
+        temperature = TemperatureQ(20, 'degC')
+
+        setpoint = config.flowrate_to_setpoint(line, flowrate, temperature)
+        assert setpoint is None

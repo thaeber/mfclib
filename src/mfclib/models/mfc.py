@@ -65,6 +65,7 @@ class MFC(pydantic.BaseModel):
     def flowrate_to_setpoint(
         self,
         flowrate: str | pint.Quantity,
+        *,
         gas: None | MixtureType = None,
         temperature: None | str | pint.Quantity = None,
         calibration: CalibrationSelector = 'latest',

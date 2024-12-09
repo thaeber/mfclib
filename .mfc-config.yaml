@@ -7,7 +7,7 @@ lines:
     #   driver: MKSAnalog
     #   channel: 1
   - name: MFC 4
-    gas: {"NH3": "1%", "He": "*"}
+    gas: {"NH3": "0.979%", "He": "*"}
     device:
       mfc: Device/MFC/Bronkhorst11
       calibration: latest
@@ -42,7 +42,7 @@ controllers:
       make: ELFlow Select
       model: F-201CV-500-RGD-33-K
       serial_number: M23215384E
-      specifications: "500 L/min N2, 4 bar"
+      specifications: "500 ml/min N2, 4 bar"
     calibrations:
       - date: 2024-06-20
         gas:
@@ -50,7 +50,7 @@ controllers:
         temperature: 20 degC
         method: linear
         offset: 0 ml/min
-        slope: 500 L/min
+        slope: 500 mL/min
     device:
       connection: FlowBus
 

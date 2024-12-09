@@ -2,7 +2,14 @@ import pytest
 
 from mfclib._quantity import TemperatureQ
 from mfclib.config import unit_registry
-from mfclib.tools import pipe, validate_dimension, validate_range
+from mfclib.tools import (
+    first,
+    first_or_default,
+    pipe,
+    replace,
+    validate_dimension,
+    validate_range,
+)
 
 
 class TestValidateDimension:
@@ -151,3 +158,101 @@ class TestPipe:
     def test_pipe_with_lambda_functions(self):
         result = pipe(2, lambda x: x + 3, lambda x: x * 2)
         assert result == 10
+
+
+class TestFirst:
+    def test_first_with_matching_condition(self):
+        result = first(lambda x: x > 2, [1, 2, 3, 4])
+        assert result == 3
+
+    def test_first_with_no_matching_condition(self):
+        with pytest.raises(StopIteration):
+            first(lambda x: x > 4, [1, 2, 3, 4])
+
+    def test_first_with_empty_iterable(self):
+        with pytest.raises(StopIteration):
+            first(lambda x: x > 0, [])
+
+    def test_first_with_strings(self):
+        result = first(lambda x: 'a' in x, ['apple', 'banana', 'cherry'])
+        assert result == 'apple'
+
+    def test_first_with_custom_objects(self):
+        class CustomObject:
+            def __init__(self, value):
+                self.value = value
+
+        objects = [CustomObject(1), CustomObject(2), CustomObject(3)]
+        result = first(lambda x: x.value == 2, objects)
+        assert result.value == 2
+
+
+class TestFirstOrDefault:
+    def test_first_or_default_with_matching_condition(self):
+        result = first_or_default(lambda x: x > 2, [1, 2, 3, 4], default=0)
+        assert result == 3
+
+    def test_first_or_default_with_no_matching_condition(self):
+        result = first_or_default(lambda x: x > 4, [1, 2, 3, 4], default=0)
+        assert result == 0
+
+    def test_first_or_default_with_empty_iterable(self):
+        result = first_or_default(lambda x: x > 0, [], default=0)
+        assert result == 0
+
+    def test_first_or_default_with_strings(self):
+        result = first_or_default(
+            lambda x: 'a' in x, ['apple', 'banana', 'cherry'], default='none'
+        )
+        assert result == 'apple'
+
+    def test_first_or_default_with_custom_objects(self):
+        class CustomObject:
+            def __init__(self, value):
+                self.value = value
+
+        objects = [CustomObject(1), CustomObject(2), CustomObject(3)]
+        result = first_or_default(lambda x: x.value == 2, objects, default=None)
+        assert result.value == 2
+
+    def test_first_or_default_with_no_matching_custom_objects(self):
+        class CustomObject:
+            def __init__(self, value):
+                self.value = value
+
+        objects = [CustomObject(1), CustomObject(2), CustomObject(3)]
+        result = first_or_default(lambda x: x.value == 4, objects, default=None)
+        assert result is None
+
+
+class TestReplace:
+    def test_replace_with_matching_condition(self):
+        result = list(replace(lambda x: x % 2 == 0, 0, [1, 2, 3, 4, 5]))
+        assert result == [1, 0, 3, 0, 5]
+
+    def test_replace_with_no_matching_condition(self):
+        result = list(replace(lambda x: x > 5, 0, [1, 2, 3, 4, 5]))
+        assert result == [1, 2, 3, 4, 5]
+
+    def test_replace_with_empty_iterable(self):
+        result = list(replace(lambda x: x % 2 == 0, 0, []))
+        assert result == []
+
+    def test_replace_with_strings(self):
+        result = list(
+            replace(lambda x: 'a' in x, 'replaced', ['apple', 'banana', 'cherry'])
+        )
+        assert result == ['replaced', 'replaced', 'cherry']
+
+    def test_replace_with_custom_objects(self):
+        class CustomObject:
+            def __init__(self, value):
+                self.value = value
+
+            def __eq__(self, other):
+                return self.value == other.value
+
+        objects = [CustomObject(1), CustomObject(2), CustomObject(3)]
+        new_object = CustomObject(0)
+        result = list(replace(lambda x: x.value == 2, new_object, objects))
+        assert result == [CustomObject(1), CustomObject(0), CustomObject(3)]

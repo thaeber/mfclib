@@ -56,7 +56,7 @@ class CalibrationBase(pydantic.BaseModel):
         flowrate *= gas.cf / self.gas.cf
 
         # account for different temperature
-        flowrate *= temperature / self.temperature
+        flowrate *= temperature.to('K') / self.temperature.to('K')
         flowrate = cast(pint.Quantity, flowrate)
 
         return flowrate
@@ -93,7 +93,7 @@ class CalibrationBase(pydantic.BaseModel):
         flowrate *= self.gas.cf / gas.cf
 
         # account for different temperature
-        flowrate *= self.temperature / temperature
+        flowrate *= self.temperature.to('K') / temperature.to('K')
 
         # calculate setpoint
         setpoint = self._impl_flowrate_to_setpoint(flowrate)
