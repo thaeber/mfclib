@@ -8,11 +8,13 @@ from typing import Any, Dict, List
 import click
 import numpy as np
 import pandas as pd
+import pint
 from rich import box
 from rich.console import Console
 from rich.table import Table
 
 import mfclib
+from mfclib.models.mixture import _balance_mixture
 
 from .. import models
 from .._quantity import FlowRateQ, TemperatureQ
@@ -20,6 +22,7 @@ from ..models.configuration import Config
 from ..tools import is_none, is_not_none, pipe, map_to_list, map_if, replace
 from ._cli_tools import validate_unbalanced_mixture
 from .main import run
+from ..config import balanceSpeciesIndicator, unit_registry
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +101,27 @@ def _format(value, reference):
         )
 
 
+def format_value(value: pint.Quantity, reference: str | pint.Quantity = '', rtol=1e-3):
+    status = StatusFlag.NONE
+    ureg = unit_registry()
+    if isinstance(reference, ureg.Quantity):
+        value = value.to(reference.units)
+
+        if np.isclose(value, reference, rtol=rtol):
+            status = StatusFlag.OK
+        else:
+            status = StatusFlag.ERROR
+    elif reference == balanceSpeciesIndicator():
+        status = StatusFlag.NONE
+    elif reference == '':
+        if np.isclose(value, 0.0):
+            status = StatusFlag.OK
+        else:
+            status = StatusFlag.WARNING
+
+    return format_with_status(value, status)
+
+
 def mix_sources(sources, fractions):
     mixture = {}
     for source, phi in zip(sources, fractions):
@@ -161,7 +185,8 @@ def flowmix(
     """
     # setup
     console = Console(record=True)
-    mixture_total = 1.0  # sum(mixture.mole_fractions).to("dimensionless")
+    mixture_total = 1.0  #
+    mixture_total = sum(mixture.mole_fractions).to("dimensionless")
     config: Config = ctx.obj['config']
 
     # get options
@@ -186,14 +211,14 @@ def flowmix(
     final_mixture = mix_sources(sources, source_fractions)
 
     # gather results in DataFrame
-    df = pd.DataFrame()
-    df['gas'] = [line.gas.name for line in config.lines]
-    df['composition'] = [
+    df_lines = pd.DataFrame()
+    df_lines['gas'] = [line.gas.name for line in config.lines]
+    df_lines['composition'] = [
         ", ".join([f"{key}={value}" for key, value in line.gas.items()])
         for line in config.lines
     ]
-    df['flowrate'] = [f for f in flow_rates]
-    df['setpoint'] = pipe(
+    df_lines['flowrate'] = [f for f in flow_rates]
+    df_lines['setpoint'] = pipe(
         zip(config.lines, flow_rates),
         partial(
             starmap,
@@ -202,8 +227,8 @@ def flowmix(
         partial(replace, is_none, format_with_status(np.nan, StatusFlag.WARNING)),
         list,
     )
-    df['line'] = [line.name for line in config.lines]
-    df['MFC'] = pipe(
+    df_lines['line'] = [line.name for line in config.lines]
+    df_lines['MFC'] = pipe(
         config.lines,
         partial(map, config.get_mfc_by_line),
         partial(map_if, is_not_none, lambda x: x.name),
@@ -216,34 +241,16 @@ def flowmix(
     console.print(f"Calculating volumetric flow rates for: {mixture!r}")
     console.print(f'Target flow rate: {flowrate} @ {temperature}')
 
-    # flow rates table
-    table = Table(
-        show_header=True,
-        header_style="bold",
-        show_footer=True,
-        row_styles=["dim", ""],
-        box=box.MARKDOWN if emit_markdown else box.HEAVY_HEAD,
+    # emit gas lines
+    box_style = box.MARKDOWN if emit_markdown else box.HORIZONTALS
+    emit_table(
+        console,
+        df_lines,
+        box=box_style,
+        header={'flowrate': f'flowrate @ {temperature}'},
+        footer=footer,
+        justify={'flowrate': 'right', 'setpoint': 'right'},
     )
-    table.add_column("gas")
-    table.add_column("composition")
-    table.add_column(
-        f"flow rate @ {temperature}",
-        footer=_format(sum(flow_rates), flowrate),
-        justify="right",
-    )
-    table.add_column(
-        f"flow rate @ {Tref}", footer=f"{sum(std_flow_rates)}", justify="right"
-    )
-    table.add_column(f"N2 flow rate @ {Tref}", justify="right")
-    for k, source in enumerate(sources):
-        table.add_row(
-            source.name,
-            ", ".join([f"{key}={value}" for key, value in source.items()]),
-            f"{flow_rates[k]}",
-            f"{std_flow_rates[k]}",
-            f"{source.equivalent_flow_rate(std_flow_rates[k])}",
-        )
-    console.print(table)
 
     # mixture composition table
     table = Table(
@@ -273,15 +280,30 @@ def flowmix(
     )
     console.print(table)
 
-    # emit gas lines
+    # gather species data in DataFrame
+    df = pd.DataFrame.from_records(
+        [
+            {name: mixture.get(name, '') for name in species},
+            {
+                name: format_value(final_mixture[name], mixture.get(name, ''))
+                for name in species
+            },
+        ]
+    )
+    df['sum'] = [
+        sum(mixture.mole_fractions).to('%'),
+        sum(final_mixture.mole_fractions).to('%'),
+    ]
+    df.insert(0, 'name', ['soll', 'is'])
+
     box_style = box.MARKDOWN if emit_markdown else box.HORIZONTALS
     emit_table(
         console,
         df,
         box=box_style,
-        header={'flowrate': f'flowrate @ {temperature}'},
-        footer=footer,
-        justify={'flowrate': 'right', 'setpoint': 'right'},
+        justify={name: 'right' for name in df.columns},
+        header={'name': ''},
+        column_style={'sum': 'dim'},
     )
 
     if output:
@@ -291,9 +313,10 @@ def flowmix(
 def emit_table(
     console,
     df,
-    header: Dict[str, Any] = None,
-    footer: Dict[str, Any] = None,
-    justify: Dict[str, Any] = None,
+    header: None | Dict[str, Any] = None,
+    footer: None | Dict[str, Any] = None,
+    justify: None | Dict[str, Any] = None,
+    column_style: None | Dict[str, Any] = None,
     box=box.SIMPLE,
 ):
     table = Table(
@@ -309,14 +332,17 @@ def emit_table(
         footer = {}
     if justify is None:
         justify = {}
+    if column_style is None:
+        column_style = {}
 
     for col in df.columns:
         table.add_column(
             header.get(col, col),
             footer=str(footer.get(col, '')),
             justify=justify.get(col, 'left'),
+            style=column_style.get(col, None),
         )
 
     for k, row in df.iterrows():
-        table.add_row(*[str(value) for value in row.values])
+        table.add_row(*[str(value) for value in row.values], style="")
     console.print(table)

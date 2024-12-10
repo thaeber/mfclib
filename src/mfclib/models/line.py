@@ -1,9 +1,8 @@
-from typing import List, Literal, Optional, Union
+from typing import Optional
 
 import pydantic
 
-from .._quantity import FlowRateQ, TemperatureQ
-from .mfc import MFC, CalibrationSelector
+from .mfc import CalibrationSelector
 from .mixture import Mixture
 
 

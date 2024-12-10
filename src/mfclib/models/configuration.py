@@ -8,10 +8,10 @@ from omegaconf import OmegaConf
 
 from mfclib._quantity import FlowRateQ, TemperatureQ
 
-from .. import models
 from ..tools import first_or_default
 from .data_logging import DataLoggingConfig
 from .line import MFCLine
+from .mfc import MFC
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +29,8 @@ class AppLogging(pydantic.BaseModel):
 
 class Config(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(extra='forbid')
-    lines: List[models.MFCLine]
-    controllers: List[models.MFC] = pydantic.Field(default_factory=list)
+    lines: List[MFCLine]
+    controllers: List[MFC] = pydantic.Field(default_factory=list)
     logging: Optional[DataLoggingConfig] = None
     app_logging: Optional[AppLogging] = None
 
@@ -76,7 +76,10 @@ class Config(pydantic.BaseModel):
             return self.get_mfc_by_name(line.device.mfc)
 
     def flowrate_to_setpoint(
-        self, line: MFCLine, flowrate: FlowRateQ, temperature: TemperatureQ
+        self,
+        line: MFCLine,
+        flowrate: FlowRateQ,
+        temperature: TemperatureQ,
     ):
         if mfc := self.get_mfc_by_line(line):
             return mfc.flowrate_to_setpoint(

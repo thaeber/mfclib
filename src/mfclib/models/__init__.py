@@ -1,12 +1,13 @@
-from .mfc import MFC
 from .calibration import LinearCalibration
+from .configuration import Config
+from .line import MFCLine
+from .mfc import MFC
 from .mixture import (
-    MixtureCollection,
     Mixture,
+    MixtureCollection,
     ensure_mixture_type,
     supply_proportions_for_mixture,
 )
-from .line import MFCLine
 
 __all__ = [
     MFC,
@@ -16,4 +17,5 @@ __all__ = [
     Mixture,
     ensure_mixture_type,
     supply_proportions_for_mixture,
+    Config,
 ]

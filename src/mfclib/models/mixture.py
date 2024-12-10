@@ -166,7 +166,7 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
 
     @property
     def mole_fractions(self):
-        return list(self.composition.values())
+        return list(_balance_mixture(self.composition).values())
 
     @property
     def cf(self):
@@ -191,11 +191,11 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
         sep = ", "
         return f"[{self.name}]({sep.join(comp)})"
 
-    def get(self, key: str, default: float = 0.0):  # type: ignore
-        if key in self.composition:
-            return self.composition[key]
-        else:
-            return _convert_value(default)
+    # def get(self, key: str, default: float = 0.0):  # type: ignore
+    #     if key in self.composition:
+    #         return self.composition[key]
+    #     else:
+    #         return _convert_value(default)
 
     def equivalent_flow_rate(
         self,

@@ -6,6 +6,7 @@ import pint
 from .config import unit_registry
 
 _T = TypeVar('_T')
+_S = TypeVar('_S')
 _Q = TypeVar('_Q')
 
 
@@ -74,7 +75,7 @@ def first(condition: Callable[[_T], bool], iterable: Iterable[_T]):
 
 
 def first_or_default(
-    condition: Callable[[_T], bool], iterable: Iterable[_T], default: _T
+    condition: Callable[[_T], bool], iterable: Iterable[_T], default: _S
 ):
     """
     Returns the first element in the iterable that satisfies the condition.
