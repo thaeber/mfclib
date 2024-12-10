@@ -30,11 +30,12 @@ class CalibrationBase(pydantic.BaseModel):
     ):
         ureg = unit_registry()
         # check input
-        setpoint = tools.validate_range(
-            tools.validate_dimension(setpoint, '[]'),
-            min_value=0,
-            max_value=1,
-        )
+        # setpoint = tools.validate_range(
+        #     tools.validate_dimension(setpoint, '[]'),
+        #     min_value=0,
+        #     max_value=1,
+        # )
+        setpoint = tools.validate_dimension(setpoint, '[]')
         if gas is None:
             gas = self.gas
         else:
@@ -99,7 +100,7 @@ class CalibrationBase(pydantic.BaseModel):
         setpoint = self._impl_flowrate_to_setpoint(flowrate)
 
         # ensure setpoint is between 0 and 1
-        setpoint = tools.validate_range(setpoint, min_value=0, max_value=1)
+        # setpoint = tools.validate_range(setpoint, min_value=0, max_value=1)
 
         setpoint = cast(pint.Quantity, setpoint)
         return setpoint
