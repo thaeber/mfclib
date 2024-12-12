@@ -7,7 +7,7 @@ from pathlib import Path
 
 from omegaconf import OmegaConf
 
-from ..configuration import AppLogging
+from ..models.configuration import AppLogging
 
 logger = logging.getLogger(__name__)
 

@@ -6,13 +6,13 @@ from typing import Any, Iterable, List, Mapping, Optional
 import pandas as pd
 import pint
 
-from ..configuration import LoggingConfig
+from ..models.configuration import DataLoggingConfig
 
 logger = logging.getLogger(__name__)
 
 
 class FileDataLogger:
-    def __init__(self, cfg: LoggingConfig):
+    def __init__(self, cfg: DataLoggingConfig):
         self.cfg = cfg
         self.last_rotation: datetime = datetime.now()
         self.current_file: Optional[Path] = None

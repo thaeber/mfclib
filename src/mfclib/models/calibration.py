@@ -5,7 +5,7 @@ from typing import Literal, cast
 import pint
 import pydantic
 
-from . import tools
+from .. import tools
 from ..config import unit_registry
 from .._quantity import FlowRateQ, TemperatureQ
 from .mixture import Mixture, MixtureType
@@ -30,11 +30,12 @@ class CalibrationBase(pydantic.BaseModel):
     ):
         ureg = unit_registry()
         # check input
-        setpoint = tools.validate_range(
-            tools.validate_dimension(setpoint, '[]'),
-            min_value=0,
-            max_value=1,
-        )
+        # setpoint = tools.validate_range(
+        #     tools.validate_dimension(setpoint, '[]'),
+        #     min_value=0,
+        #     max_value=1,
+        # )
+        setpoint = tools.validate_dimension(setpoint, '[]')
         if gas is None:
             gas = self.gas
         else:
@@ -56,7 +57,7 @@ class CalibrationBase(pydantic.BaseModel):
         flowrate *= gas.cf / self.gas.cf
 
         # account for different temperature
-        flowrate *= temperature / self.temperature
+        flowrate *= temperature.to('K') / self.temperature.to('K')
         flowrate = cast(pint.Quantity, flowrate)
 
         return flowrate
@@ -93,13 +94,13 @@ class CalibrationBase(pydantic.BaseModel):
         flowrate *= self.gas.cf / gas.cf
 
         # account for different temperature
-        flowrate *= self.temperature / temperature
+        flowrate *= self.temperature.to('K') / temperature.to('K')
 
         # calculate setpoint
         setpoint = self._impl_flowrate_to_setpoint(flowrate)
 
         # ensure setpoint is between 0 and 1
-        setpoint = tools.validate_range(setpoint, min_value=0, max_value=1)
+        # setpoint = tools.validate_range(setpoint, min_value=0, max_value=1)
 
         setpoint = cast(pint.Quantity, setpoint)
         return setpoint

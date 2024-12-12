@@ -10,7 +10,7 @@ from rich.pretty import pretty_repr
 
 import mfclib
 
-from ..configuration import get_configuration
+from ..models.configuration import get_configuration
 from ..logging import AppLoggingMode, configure_app_logging
 from ._cli_tools import validate_balanced_mixture
 

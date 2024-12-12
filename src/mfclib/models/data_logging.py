@@ -1,14 +1,10 @@
-from datetime import datetime
 import logging
-from os import PathLike
-from pathlib import Path
-from typing import Annotated, Dict, List, Literal, Optional
+from datetime import datetime
+from typing import Annotated, Dict, List, Literal
 
 import pydantic
-from omegaconf import OmegaConf
 
-from mfclib._quantity import TimeQ
-from . import models
+from .._quantity import TimeQ
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +13,7 @@ LogLevelType = Literal[
 ]
 
 
-class LoggingConfig(pydantic.BaseModel):
+class DataLoggingConfig(pydantic.BaseModel):
     directory: str = './output/{:%Y-%m-%d}'
     filename: str = 'eurotherm-{:%Y-%m-%dT%H-%M-%S}.csv'
     format: str = "%.6g"
@@ -53,34 +49,4 @@ class LoggingConfig(pydantic.BaseModel):
     def check_formatting(self):
         self.directory.format(datetime.now())
         self.filename.format(datetime.now())
-
-
-class AppLogging(pydantic.BaseModel):
-    disable_logging: bool = False
-    level: LogLevelType = 'INFO'
-    formatters: dict[str, dict[str, str]] = pydantic.Field(default_factory=dict)
-    handlers: dict[str, dict[str, str | int]] = pydantic.Field(default_factory=dict)
-
-
-class Config(pydantic.BaseModel):
-    model_config = pydantic.ConfigDict(extra='forbid')
-    lines: List[models.MFCLine]
-    logging: Optional[LoggingConfig] = None
-    app_logging: Optional[AppLogging] = None
-
-
-def get_configuration(
-    *,
-    cmd_args: Optional[List[str]] = None,
-    filename: str | PathLike = '.eurotherm.yaml',
-    use_cli=False,
-):
-    cfg = OmegaConf.load(Path(filename))
-    if use_cli:
-        cfg.merge_with_cli()
-    if cmd_args is not None:
-        cfg.merge_with_dotlist(cmd_args)
-
-    result = Config.model_validate(OmegaConf.to_container(cfg, resolve=True))
-
-    return result
+        return self

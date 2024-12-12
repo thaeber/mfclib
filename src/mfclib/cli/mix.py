@@ -1,19 +1,25 @@
 import logging
 from enum import Enum
+from functools import partial
+from itertools import starmap
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 
 import click
 import numpy as np
+import pandas as pd
+import pint
 from rich import box
 from rich.console import Console
 from rich.table import Table
 
 import mfclib
-from ..configuration import Config
-from .._quantity import FlowRateQ, TemperatureQ
 
 from .. import models
+from .._quantity import FlowRateQ, TemperatureQ
+from ..config import balanceSpeciesIndicator, unit_registry
+from ..models.configuration import Config
+from ..tools import is_none, is_not_none, map_if, pipe, replace
 from ._cli_tools import validate_unbalanced_mixture
 from .main import run
 
@@ -26,46 +32,52 @@ class StatusFlag(Enum):
     WARNING = 3
     ERROR = 4
 
+    def __str__(self):
+        match self:
+            case StatusFlag.NONE:
+                return ''
+            case StatusFlag.OK:
+                return '[green1]:heavy_check_mark:[/green1]'
+            case StatusFlag.WARNING:
+                return '[orange1]:warning:[/orange1]'
+            case StatusFlag.ERROR:
+                return '[bold red1]:x:[/bold red1]'
 
-def _format_status(value: Any, status: StatusFlag):
+    def __repr__(self):
+        return self.__str__()
+
+
+def format_with_status(value: Any, status: StatusFlag):
     match status:
         case StatusFlag.NONE:
             return f'{value}'
         case StatusFlag.OK:
-            return f"[green1]:heavy_check_mark:[/green1] {value}"
+            return f"[green1]:heavy_check_mark: {value}[/green1]"
         case StatusFlag.WARNING:
-            return f"[orange1]:warning:[/orange1] {value}"
+            return f"[orange1]:warning: {value}[/orange1]"
         case StatusFlag.ERROR:
-            return f"[bold red1]:x:[/bold red1] {value}"
+            return f"[bold red1]:x: {value}[/bold red1]"
 
 
-def _format(value, reference):
-    # return f'{value}'
-    try:
+def format_value(value: pint.Quantity, reference: str | pint.Quantity = '', rtol=1e-3):
+    status = StatusFlag.NONE
+    ureg = unit_registry()
+    if isinstance(reference, ureg.Quantity):
         value = value.to(reference.units)
-    except AttributeError:
-        pass
-    tolerance = 1e-3
-    if isinstance(reference, str):
-        return _format_status(value, StatusFlag.NONE)
-    elif reference is None:
-        return _format_status(
-            value,
-            StatusFlag.OK if np.isclose(value, 0.0) else StatusFlag.WARNING,
-        )
-    elif reference == 0:
-        return _format_status(
-            value, StatusFlag.OK if abs(value) < tolerance else StatusFlag.ERROR
-        )
-    else:
-        return _format_status(
-            value,
-            (
-                StatusFlag.OK
-                if abs(1.0 - value / reference) < tolerance
-                else StatusFlag.ERROR
-            ),
-        )
+
+        if np.isclose(value, reference, rtol=rtol):
+            status = StatusFlag.OK
+        else:
+            status = StatusFlag.ERROR
+    elif reference == balanceSpeciesIndicator():
+        status = StatusFlag.NONE
+    elif reference == '':
+        if np.isclose(value, 0.0):
+            status = StatusFlag.OK
+        else:
+            status = StatusFlag.WARNING
+
+    return format_with_status(value, status)
 
 
 def mix_sources(sources, fractions):
@@ -94,7 +106,7 @@ def mix_sources(sources, fractions):
 @click.option(
     "-T",
     "--temperature",
-    default="293K",
+    default="20°C",
     show_default=True,
     type=TemperatureQ,
     help="Temperature of mixed flow.",
@@ -119,9 +131,9 @@ def flowmix(
     emit_markdown: bool,
 ):
     """
-    Calculate flow rates of source gases to obtain a given gas mixture.
-    GASES_FILE contains the composition of source gases in TOML format
-    and MIXTURE_COMPOSITION defines the target mixture.
+    Calculate flow rates of source gases to obtain a given gas MIXTURE.
+    The available sources are defined in the configuration file (see --config
+    option of the base command `mfc`).
 
     Example:
 
@@ -130,8 +142,10 @@ def flowmix(
 
     """
     # setup
+    ureg = mfclib.unit_registry()
     console = Console(record=True)
-    mixture_total = 1.0  # sum(mixture.mole_fractions).to("dimensionless")
+    mixture_total = 1.0  #
+    mixture_total = sum(mixture.mole_fractions).to("dimensionless")
     config: Config = ctx.obj['config']
 
     # get options
@@ -159,62 +173,108 @@ def flowmix(
     console.print(f"Calculating volumetric flow rates for: {mixture!r}")
     console.print(f'Target flow rate: {flowrate} @ {temperature}')
 
-    # flow rates table
-    table = Table(
-        show_header=True,
-        header_style="bold",
-        show_footer=True,
-        row_styles=["dim", ""],
-        box=box.MARKDOWN if emit_markdown else box.HEAVY_HEAD,
+    # gather results in DataFrame
+    df_lines = pd.DataFrame()
+    df_lines['gas'] = [line.gas.name for line in config.lines]
+    df_lines['composition'] = [
+        ", ".join([f"{key}={value}" for key, value in line.gas.items()])
+        for line in config.lines
+    ]
+    df_lines['flowrate'] = [f for f in flow_rates]
+    df_lines['setpoint'] = pipe(
+        zip(config.lines, flow_rates),
+        partial(
+            starmap,
+            lambda line, value: config.flowrate_to_setpoint(line, value, temperature),
+        ),
+        partial(replace, is_none, format_with_status(np.nan, StatusFlag.WARNING)),
+        list,
     )
-    table.add_column("gas")
-    table.add_column("composition")
-    table.add_column(
-        f"flow rate @ {temperature}",
-        footer=_format(sum(flow_rates), flowrate),
-        justify="right",
+    df_lines['line'] = [line.name for line in config.lines]
+    df_lines['MFC'] = pipe(
+        config.lines,
+        partial(map, config.get_mfc_by_line),
+        partial(map_if, is_not_none, lambda x: x.name),
+        partial(replace, is_none, format_with_status('missing', StatusFlag.WARNING)),
+        list,
     )
-    table.add_column(
-        f"flow rate @ {Tref}", footer=f"{sum(std_flow_rates)}", justify="right"
+    footer = {f'flowrate': format_value(sum(flow_rates), flowrate)}
+
+    # emit gas lines
+    box_style = box.MARKDOWN if emit_markdown else box.HORIZONTALS
+    emit_table(
+        console,
+        df_lines,
+        box=box_style,
+        header={'flowrate': f'flowrate @ {temperature}'},
+        footer=footer,
+        justify={'flowrate': 'right', 'setpoint': 'right'},
+        column_style={'setpoint': 'bold'},
     )
-    table.add_column(f"N2 flow rate @ {Tref}", justify="right")
-    for k, source in enumerate(sources):
-        table.add_row(
-            source.name,
-            ", ".join([f"{key}={value}" for key, value in source.items()]),
-            f"{flow_rates[k]}",
-            f"{std_flow_rates[k]}",
-            f"{source.equivalent_flow_rate(std_flow_rates[k])}",
-        )
-    console.print(table)
 
     # mixture composition table
-    table = Table(
-        show_header=True,
-        row_styles=["dim", ""],
-        box=box.MARKDOWN if emit_markdown else box.HEAVY_HEAD,
+    df_mixture = pd.DataFrame.from_records(
+        [
+            {name: mixture.get(name, '') for name in species},
+            {
+                name: format_value(final_mixture[name], mixture.get(name, ''))
+                for name in species
+            },
+        ]
     )
-    table.add_column("")
-    for name in species:
-        table.add_column(name, justify="right")
-    table.add_column("sum", justify="right")
-    table.add_row(
-        'soll',
-        *[f"{mixture.get(name) if name in mixture else ''}" for name in species],
-        f"{mixture_total}",
+    df_mixture['sum'] = [
+        sum(mixture.mole_fractions).to('%'),
+        format_value(sum(final_mixture.mole_fractions).to('%'), 100.0 * ureg.percent),
+    ]
+    df_mixture.insert(0, 'name', ['soll', 'is'])
+
+    box_style = box.MARKDOWN if emit_markdown else box.HORIZONTALS
+    emit_table(
+        console,
+        df_mixture,
+        box=box_style,
+        justify={name: 'right' for name in df_mixture.columns},
+        header={'name': ''},
+        column_style={'sum': 'dim'},
     )
-    table.add_row(
-        "is",
-        *[
-            _format(
-                final_mixture.get(name),
-                mixture.get(name) if name in mixture else None,
-            )
-            for name in species
-        ],
-        _format(sum(final_mixture.mole_fractions), mixture_total),
-    )
-    console.print(table)
 
     if output:
         console.save_text(output)
+
+
+def emit_table(
+    console,
+    df,
+    header: None | Dict[str, Any] = None,
+    footer: None | Dict[str, Any] = None,
+    justify: None | Dict[str, Any] = None,
+    column_style: None | Dict[str, Any] = None,
+    box=box.SIMPLE,
+):
+    table = Table(
+        show_header=True,
+        header_style="bold",
+        show_footer=footer is not None,
+        # row_styles=["dim", ""],
+        box=box,
+    )
+    if header is None:
+        header = {}
+    if footer is None:
+        footer = {}
+    if justify is None:
+        justify = {}
+    if column_style is None:
+        column_style = {}
+
+    for col in df.columns:
+        table.add_column(
+            header.get(col, col),
+            footer=str(footer.get(col, '')),
+            justify=justify.get(col, 'left'),
+            style=column_style.get(col, None),
+        )
+
+    for k, row in df.iterrows():
+        table.add_row(*[str(value) for value in row.values], style="")
+    console.print(table)

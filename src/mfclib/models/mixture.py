@@ -166,7 +166,7 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
 
     @property
     def mole_fractions(self):
-        return list(self.composition.values())
+        return list(_balance_mixture(self.composition).values())
 
     @property
     def cf(self):
@@ -191,11 +191,11 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
         sep = ", "
         return f"[{self.name}]({sep.join(comp)})"
 
-    def get(self, key: str, default: float = 0.0):  # type: ignore
-        if key in self.composition:
-            return self.composition[key]
-        else:
-            return _convert_value(default)
+    # def get(self, key: str, default: float = 0.0):  # type: ignore
+    #     if key in self.composition:
+    #         return self.composition[key]
+    #     else:
+    #         return _convert_value(default)
 
     def equivalent_flow_rate(
         self,
@@ -332,15 +332,12 @@ def supply_proportions_for_mixture(
     if abs(total - 1.0) > tolerance:
         details = textwrap.dedent(
             f"""
-            Inconsistent mixture composition:
-            The sum of supply proportions (actual value: {total}) is not 1
-            to within a tolerance of {tolerance}. Either the fit did not converge
-            or the desired mixture cannot be obtained using the chosen gas
-            supplies. Obtained proportions:
+            Inconsistent mixture composition: The sum of the mixture components
+            (actual value: {total}) is not 1 within a tolerance of {tolerance}.
+            Either the fit has not converged or the desired mixture cannot be
+            achieved with the selected gas supplies.
             """
         )
-        for source, value in zip(sources, x):
-            details += f"\n{source.name} = {value}"
         warnings.warn(details)
 
     # return relative flow rates for each supply
