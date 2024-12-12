@@ -332,15 +332,12 @@ def supply_proportions_for_mixture(
     if abs(total - 1.0) > tolerance:
         details = textwrap.dedent(
             f"""
-            Inconsistent mixture composition:
-            The sum of supply proportions (actual value: {total}) is not 1
-            to within a tolerance of {tolerance}. Either the fit did not converge
-            or the desired mixture cannot be obtained using the chosen gas
-            supplies. Obtained proportions:
+            Inconsistent mixture composition: The sum of the mixture components
+            (actual value: {total}) is not 1 within a tolerance of {tolerance}.
+            Either the fit has not converged or the desired mixture cannot be
+            achieved with the selected gas supplies.
             """
         )
-        for source, value in zip(sources, x):
-            details += f"\n{source.name} = {value}"
         warnings.warn(details)
 
     # return relative flow rates for each supply
