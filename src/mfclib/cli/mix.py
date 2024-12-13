@@ -144,8 +144,7 @@ def flowmix(
     # setup
     ureg = mfclib.unit_registry()
     console = Console(record=True)
-    mixture_total = 1.0  #
-    mixture_total = sum(mixture.fractions.values()).to("dimensionless")
+    sum(mixture.fractions.values()).to("dimensionless")
     config: Config = ctx.obj['config']
 
     # get options
@@ -164,7 +163,7 @@ def flowmix(
     # source flow rates at target and reference temperature
     T_ratio = Tref / temperature
     flow_rates = source_fractions * flowrate
-    std_flow_rates = flow_rates * T_ratio
+    flow_rates * T_ratio
 
     # final mixture composition
     final_mixture = mix_sources(sources, source_fractions)
@@ -198,7 +197,7 @@ def flowmix(
         partial(replace, is_none, format_with_status('missing', StatusFlag.WARNING)),
         list,
     )
-    footer = {f'flowrate': format_value(sum(flow_rates), flowrate)}
+    footer = {'flowrate': format_value(sum(flow_rates), flowrate)}
 
     # emit gas lines
     box_style = box.MARKDOWN if emit_markdown else box.HORIZONTALS

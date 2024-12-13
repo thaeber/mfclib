@@ -63,7 +63,7 @@ class TestMixture:
 
     def test_fails_on_multiple_balance_species(self):
         with pytest.raises(ValueError):
-            mfc = Mixture(composition=dict(Ar='*', N2='*', NO=0.003))
+            Mixture(composition=dict(Ar='*', N2='*', NO=0.003))
 
     def test_with_balance_species_and_units(self):
         ureg = mfclib.unit_registry()

@@ -126,7 +126,8 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
         creating the mixture.
 
         Returns:
-            Dict[str, FractionQ]: A dictionary of fraction values from the balanced composition.
+            `Dict[str, FractionQ]`: A dictionary of fraction values from the balanced
+                composition.
         """
         values = {
             key: cast(FractionQ, value)
