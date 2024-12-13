@@ -99,6 +99,10 @@ class PydanticQuantity(Quantity):
         return handler(core_schema.int_schema())
 
 
+class FractionQ(PydanticQuantity):
+    restrict_dimensionality = '[]'
+
+
 class TimeQ(PydanticQuantity):
     restrict_dimensionality = '[time]'
 

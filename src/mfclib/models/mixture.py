@@ -12,6 +12,7 @@ from typing import (
     SupportsFloat,
     TypeAlias,
     Union,
+    cast,
 )
 
 import numpy as np
@@ -20,73 +21,14 @@ import pydantic
 import scipy.optimize
 from numpy.typing import NDArray
 
+from ..quantity_type import FractionQ
+
 from ..cf import calculate_CF
 from ..config import balanceSpeciesIndicator, unit_registry
 
 AmountType: TypeAlias = SupportsFloat | Literal['*']
 MixtureMapping: TypeAlias = Mapping[str, AmountType]
 MixtureType: TypeAlias = 'Mixture' | MixtureMapping
-
-
-def _convert_value(
-    value: str | SupportsFloat,
-):
-    if value == balanceSpeciesIndicator():
-        return value
-    if ureg := unit_registry():
-        converted = ureg.Quantity(value)
-        # check that value is dimensionless
-        if not converted.check("[]"):
-            raise ValueError(
-                f"`{converted:~P}` is not dimensionless, but has "
-                f"dimensions of `{converted.units:P}`"
-            )
-        return converted
-    else:
-        return float(value)
-
-
-def _get_balance_species(feed: MixtureMapping):
-    balance_indicator = balanceSpeciesIndicator()
-    balance_species = [key for key, value in feed.items() if value == balance_indicator]
-
-    # ensure there is at most one species marked for balance
-    match balance_species:
-        case [symbol]:
-            return symbol
-        case []:
-            return None
-        case _:
-            message = 'Only one species may be marked as balance species.'
-            detail = f'{feed}'
-            raise ValueError('\n'.join([message, detail]))
-
-
-def _convert_mixture(feed: MixtureMapping):
-    # convert feed values
-    converted = {key: _convert_value(value) for key, value in feed.items()}
-    return converted
-
-
-def _balance_mixture(feed: MixtureMapping):
-    balance_with: str | None = None
-
-    # convert feed values
-    converted = _convert_mixture(feed)
-
-    balance_with = _get_balance_species(feed)
-
-    if balance_with:
-        # get sum of mole fractions
-        total = np.sum(
-            [float(v) for key, v in converted.items() if key != balance_with]
-        )
-
-        # add back balance species
-        if balance_with:
-            converted[balance_with] = 1.0 - _convert_value(total)  # type: ignore
-
-    return converted
 
 
 def ensure_mixture_type(mixture: MixtureType, *, strict=True, balance=True):
@@ -98,59 +40,46 @@ def ensure_mixture_type(mixture: MixtureType, *, strict=True, balance=True):
 
 class Mixture(pydantic.BaseModel, collections.abc.Mapping):
     name: Optional[str] = None
-    composition: Mapping[str, Any]
-    strict: bool = True
-    balance: bool = True
+    composition: Mapping[str, str | FractionQ]
 
     @staticmethod
-    def create(mixture: MixtureType, *, strict=True, balance=True):
+    def create(mixture: MixtureType):
         if isinstance(mixture, Mixture):
             return mixture
         else:
             match mixture:
                 case {'name': name, 'composition': composition}:
-                    return Mixture(
-                        name=name,
-                        composition=composition,
-                        strict=strict,
-                        balance=balance,
-                    )
+                    return Mixture(name=name, composition=composition)
                 case {'composition': composition}:
-                    return Mixture(
-                        composition=composition,
-                        strict=strict,
-                        balance=balance,
-                    )
+                    return Mixture(composition=composition)
                 case _:
-                    return Mixture(composition=mixture, strict=strict, balance=balance)
+                    return Mixture(composition=mixture)
 
     @pydantic.model_validator(mode='after')
     def check_name(self):
         if not self.name:
             self.name = "/".join(self.composition.keys())
-        try:
-            if self.balance:
-                self.composition = _balance_mixture(self.composition)
-        except ValueError as ex:
-            if self.strict:
-                raise ex
+        # ensure mixture can be balanced
+        _ = self.get_balance_species()
         return self
 
     @pydantic.field_validator('composition', mode='before')
     @classmethod
     def check_composition(cls, value):
-        return _convert_mixture(value)
+        return cls._convert_mixture(value)
 
-    @pydantic.field_serializer('composition', mode='wrap')
+    @pydantic.field_serializer('composition')  # , mode='wrap')
     def serialize_composition(
         self,
         composition,
-        nxt: pydantic.SerializerFunctionWrapHandler,
+        # nxt: pydantic.SerializerFunctionWrapHandler,
         _info,
     ):
+        ureg = unit_registry()
+
         def func(value):
-            if isinstance(value, pint.Quantity):
-                if value.units == unit_registry().Unit(''):
+            if isinstance(value, ureg.Quantity):
+                if value.units == ureg.Unit('dimensionless'):
                     return float(value)
                 else:
                     return f'{value:~D}'
@@ -158,15 +87,22 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
                 return value
 
         converted = {key: func(value) for key, value in composition.items()}
-        return nxt(converted)
+        return converted
 
     @property
     def species(self):
         return list(self.composition.keys())
 
     @property
+    def fractions(self):
+        values = [
+            cast(FractionQ, value) for value in self.balanced.composition.values()
+        ]
+        return values
+
+    @property
     def mole_fractions(self):
-        return list(_balance_mixture(self.composition).values())
+        return [value.m_as('') for value in self.fractions]
 
     @property
     def cf(self):
@@ -191,12 +127,6 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
         sep = ", "
         return f"[{self.name}]({sep.join(comp)})"
 
-    # def get(self, key: str, default: float = 0.0):  # type: ignore
-    #     if key in self.composition:
-    #         return self.composition[key]
-    #     else:
-    #         return _convert_value(default)
-
     def equivalent_flow_rate(
         self,
         flow_rate: SupportsFloat,
@@ -207,6 +137,61 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
         else:
             _ref = ensure_mixture_type(_ref)
         return flow_rate * _ref.cf / self.cf
+
+    @classmethod
+    def _convert_value(
+        cls,
+        value: str | float | pint.Quantity,
+    ):
+        if isinstance(value, str) and (value == balanceSpeciesIndicator()):
+            return value
+        else:
+            # convert to dimensionless quantity
+            converted = FractionQ(value)
+            return converted
+
+    @classmethod
+    def _convert_mixture(cls, feed: MixtureMapping):
+        # convert feed values
+        converted = {key: cls._convert_value(value) for key, value in feed.items()}
+        return converted
+
+    def get_balance_species(self):
+        balance_indicator = balanceSpeciesIndicator()
+        balance_species = [
+            key for key, value in self.composition.items() if value == balance_indicator
+        ]
+
+        # ensure there is at most one species marked for balance
+        match balance_species:
+            case [symbol]:
+                return symbol
+            case []:
+                return None
+            case _:
+                raise ValueError(
+                    'Only one species may be labelled as a balance species, found '
+                    f'{len(balance_species)} in mixture: {self.composition}'
+                )
+
+    @property
+    def balanced(self):
+        balance_with: str | None = None
+
+        # copy mixture composition
+        mixture = self.composition.copy()
+
+        balance_with = self.get_balance_species()
+
+        if balance_with:
+            # get sum of mole fractions
+            total = sum([float(v) for key, v in mixture.items() if key != balance_with])
+
+            # add back balance species
+            if balance_with:
+                mixture[balance_with] = 1.0 - total
+
+        return Mixture(name=self.name, composition=mixture)
 
 
 class MixtureCollection(

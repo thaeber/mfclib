@@ -1,7 +1,7 @@
 import pytest
 
 import mfclib
-from mfclib._quantity import FlowRateQ, TemperatureQ
+from mfclib.quantity_type import FlowRateQ, TemperatureQ
 from mfclib.models.configuration import Config, get_configuration
 from mfclib.models.line import MFCLine
 

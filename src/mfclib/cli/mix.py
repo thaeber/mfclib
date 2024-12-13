@@ -16,7 +16,7 @@ from rich.table import Table
 import mfclib
 
 from .. import models
-from .._quantity import FlowRateQ, TemperatureQ
+from ..quantity_type import FlowRateQ, TemperatureQ
 from ..config import balanceSpeciesIndicator, unit_registry
 from ..models.configuration import Config
 from ..tools import is_none, is_not_none, map_if, pipe, replace
@@ -145,7 +145,7 @@ def flowmix(
     ureg = mfclib.unit_registry()
     console = Console(record=True)
     mixture_total = 1.0  #
-    mixture_total = sum(mixture.mole_fractions).to("dimensionless")
+    mixture_total = sum(mixture.fractions).to("dimensionless")
     config: Config = ctx.obj['config']
 
     # get options
@@ -223,8 +223,8 @@ def flowmix(
         ]
     )
     df_mixture['sum'] = [
-        sum(mixture.mole_fractions).to('%'),
-        format_value(sum(final_mixture.mole_fractions).to('%'), 100.0 * ureg.percent),
+        sum(mixture.fractions).to('%'),
+        format_value(sum(final_mixture.fractions).to('%'), 100.0 * ureg.percent),
     ]
     df_mixture.insert(0, 'name', ['soll', 'is'])
 

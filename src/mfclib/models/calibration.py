@@ -7,7 +7,7 @@ import pydantic
 
 from .. import tools
 from ..config import unit_registry
-from .._quantity import FlowRateQ, TemperatureQ
+from ..quantity_type import FlowRateQ, TemperatureQ
 from .mixture import Mixture, MixtureType
 
 

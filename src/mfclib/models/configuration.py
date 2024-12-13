@@ -6,7 +6,7 @@ from typing import List, Literal, Optional
 import pydantic
 from omegaconf import OmegaConf
 
-from mfclib._quantity import FlowRateQ, TemperatureQ
+from mfclib.quantity_type import FlowRateQ, TemperatureQ
 
 from ..tools import first_or_default
 from .data_logging import DataLoggingConfig

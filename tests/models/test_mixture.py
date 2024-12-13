@@ -3,40 +3,41 @@ import pytest
 
 from mfclib.models import Mixture, supply_proportions_for_mixture
 import mfclib
-from mfclib.models.mixture import _balance_mixture, _convert_value
 
 
 class TestConvertValue:
     def test_with_float(self):
-        assert _convert_value(0.9) == 0.9
+        assert Mixture._convert_value(0.9) == 0.9
 
     def test_with_int(self):
-        value = _convert_value(2)
+        value = Mixture._convert_value(2)
         assert value == 2.0
 
     def test_with_str(self):
-        value = _convert_value('0.678')
+        value = Mixture._convert_value('0.678')
         assert value == 0.678
 
     def test_fails_on_invalid_str(self):
         with pytest.raises((ValueError, pint.UndefinedUnitError)):
-            _convert_value('test')
+            Mixture._convert_value('test')
 
     @pytest.mark.skip(
         reason='Currently pint treats strings with commas in an inconsistent way'
     )
     def test_fail_on_thousands_separator(self):
         with pytest.raises(ValueError):
-            _convert_value('0,678')
+            Mixture._convert_value('0,678')
 
     def test_with_pint_quantity(self):
-        assert _convert_value(pint.Quantity('2.0%')) == pytest.approx(0.02)
-        assert _convert_value(pint.Quantity('235.1ppm')) == pytest.approx(0.0002351)
+        assert Mixture._convert_value(pint.Quantity('2.0%')) == pytest.approx(0.02)
+        assert Mixture._convert_value(pint.Quantity('235.1ppm')) == pytest.approx(
+            0.0002351
+        )
 
     def test_with_pint_str(self):
-        assert _convert_value('2.0%') == pytest.approx(0.02)
-        assert _convert_value('2.0percent') == pytest.approx(0.02)
-        assert _convert_value('200ppm') == pytest.approx(0.0002)
+        assert Mixture._convert_value('2.0%') == pytest.approx(0.02)
+        assert Mixture._convert_value('2.0percent') == pytest.approx(0.02)
+        assert Mixture._convert_value('200ppm') == pytest.approx(0.0002)
 
 
 class TestBalanceMixture:
@@ -86,10 +87,14 @@ class TestMixture:
         assert dict(mfc) == dict(N2=0.79, O2=0.21)
         assert mfc.name == 'N2/O2'
 
-    def test_create_with_balanced_feed(self):
-        mfc = Mixture(composition=dict(N2='*', O2=0.21), name='carrier')
+    def test_create_with_balance_species(self):
+        mfc = Mixture(composition=dict(N2='*', O2='21%'), name='carrier')
+
+        ureg = mfclib.unit_registry()
         assert mfc.name == 'carrier'
-        assert mfc.composition == dict(N2=0.79, O2=0.21)
+        assert mfc.composition == dict(N2='*', O2=21.0 * ureg.percent)
+        assert mfc.fractions == [0.79, 0.21]
+        assert mfc.mole_fractions == [0.79, 0.21]
 
     def test_synthesize_name(self):
         mixture = Mixture(composition=dict(NO=0.003, Ar='*'))
@@ -178,12 +183,6 @@ class TestMixture:
         mixture = Mixture.create({'composition': {'N2': 0.79, 'O2': 0.21}})
         assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
         assert mixture.name == 'N2/O2'
-
-    def test_create_with_strict_and_balance(self):
-        mixture = Mixture.create({'N2': 0.79, 'O2': 0.21}, strict=False, balance=False)
-        assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
-        assert mixture.strict is False
-        assert mixture.balance is False
 
 
 class TestProportionsForMixture:
