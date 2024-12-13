@@ -1,7 +1,7 @@
 import pytest
 
 import mfclib
-from mfclib._quantity import FlowRateQ, TemperatureQ
+from mfclib.quantity_type import FlowRateQ, TemperatureQ
 from mfclib.models.configuration import Config, get_configuration
 from mfclib.models.line import MFCLine
 
@@ -46,7 +46,7 @@ class TestGetConfiguration:
               mfc: Device/MFC/Bronkhorst11
           - name: MFC 5
             gas: {"O2": "*"}
-        
+
         controllers:
           - name: Device/MFC/Brooks01
             info:
@@ -62,7 +62,7 @@ class TestGetConfiguration:
                 method: linear
                 offset: 0 ml/min
                 slope: 2.0 L/min
-        
+
           - name: Device/MFC/Bronkhorst11
             info:
               manufacturer: Bronkhorst
@@ -102,7 +102,7 @@ class TestGetConfiguration:
               mfc: Device/MFC/Bronkhorst11
           - name: MFC 5
             gas: {"O2": "*"}
-        
+
         controllers:
           - name: Device/MFC/Brooks01
             calibrations: []
@@ -134,7 +134,7 @@ class TestGetConfiguration:
             gas: {"O2": "*"}
             device:
               mfc: Device/MFC/Brooks01
-        
+
         controllers:
           - name: Device/MFC/Brooks01
             calibrations: []
@@ -164,7 +164,7 @@ class TestGetConfiguration:
             gas: {"O2": "*"}
             device:
               mfc: Device/MFC/Brooks01
-        
+
         controllers:
           - name: Device/MFC/Brooks01
             calibrations: []
@@ -195,7 +195,7 @@ class TestFlowrateToSetpoint:
             device:
               mfc: Device/MFC/Bronkhorst11
               calibration: latest
-        
+
         controllers:
           - name: Device/MFC/Brooks01
             calibrations:
@@ -247,7 +247,7 @@ class TestFlowrateToSetpoint:
             device:
               mfc: Device/MFC/Brooks01
               calibration: latest
-        
+
         controllers:
           - name: Device/MFC/Brooks01
             calibrations:

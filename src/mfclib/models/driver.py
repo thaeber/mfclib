@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 
 import pydantic
 
-from .._quantity import TimeQ
+from ..quantity_type import TimeQ
 
 
 class ServerConfig(pydantic.BaseModel):

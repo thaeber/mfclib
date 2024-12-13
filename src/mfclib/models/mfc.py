@@ -4,7 +4,7 @@ import pint
 import pydantic
 
 from .calibration import CalibrationBase, LinearCalibration
-from .._quantity import ElectricPotentialQ
+from ..quantity_type import ElectricPotentialQ
 from .mixture import MixtureType
 
 

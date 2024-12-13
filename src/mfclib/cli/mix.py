@@ -16,7 +16,7 @@ from rich.table import Table
 import mfclib
 
 from .. import models
-from .._quantity import FlowRateQ, TemperatureQ
+from ..quantity_type import FlowRateQ, TemperatureQ
 from ..config import balanceSpeciesIndicator, unit_registry
 from ..models.configuration import Config
 from ..tools import is_none, is_not_none, map_if, pipe, replace
@@ -144,8 +144,7 @@ def flowmix(
     # setup
     ureg = mfclib.unit_registry()
     console = Console(record=True)
-    mixture_total = 1.0  #
-    mixture_total = sum(mixture.mole_fractions).to("dimensionless")
+    sum(mixture.fractions.values()).to("dimensionless")
     config: Config = ctx.obj['config']
 
     # get options
@@ -164,7 +163,7 @@ def flowmix(
     # source flow rates at target and reference temperature
     T_ratio = Tref / temperature
     flow_rates = source_fractions * flowrate
-    std_flow_rates = flow_rates * T_ratio
+    flow_rates * T_ratio
 
     # final mixture composition
     final_mixture = mix_sources(sources, source_fractions)
@@ -198,7 +197,7 @@ def flowmix(
         partial(replace, is_none, format_with_status('missing', StatusFlag.WARNING)),
         list,
     )
-    footer = {f'flowrate': format_value(sum(flow_rates), flowrate)}
+    footer = {'flowrate': format_value(sum(flow_rates), flowrate)}
 
     # emit gas lines
     box_style = box.MARKDOWN if emit_markdown else box.HORIZONTALS
@@ -215,16 +214,20 @@ def flowmix(
     # mixture composition table
     df_mixture = pd.DataFrame.from_records(
         [
-            {name: mixture.get(name, '') for name in species},
+            {name: mixture.composition.get(name, '') for name in species},
             {
-                name: format_value(final_mixture[name], mixture.get(name, ''))
+                name: format_value(
+                    final_mixture[name], mixture.composition.get(name, '')
+                )
                 for name in species
             },
         ]
     )
     df_mixture['sum'] = [
-        sum(mixture.mole_fractions).to('%'),
-        format_value(sum(final_mixture.mole_fractions).to('%'), 100.0 * ureg.percent),
+        sum(mixture.fractions.values()).to('%'),
+        format_value(
+            sum(final_mixture.fractions.values()).to('%'), 100.0 * ureg.percent
+        ),
     ]
     df_mixture.insert(0, 'name', ['soll', 'is'])
 

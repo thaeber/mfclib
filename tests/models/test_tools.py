@@ -1,6 +1,6 @@
 import pytest
 
-from mfclib._quantity import TemperatureQ
+from mfclib.quantity_type import TemperatureQ
 from mfclib.config import unit_registry
 from mfclib.tools import (
     first,

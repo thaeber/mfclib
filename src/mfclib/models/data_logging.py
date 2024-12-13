@@ -4,7 +4,7 @@ from typing import Annotated, Dict, List, Literal
 
 import pydantic
 
-from .._quantity import TimeQ
+from ..quantity_type import TimeQ
 
 logger = logging.getLogger(__name__)
 

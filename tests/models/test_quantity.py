@@ -4,7 +4,7 @@ import pint
 import pytest
 from pydantic import BaseModel
 
-from mfclib._quantity import (
+from mfclib.quantity_type import (
     PressureQ,
     PydanticQuantity,
     TemperatureQ,
