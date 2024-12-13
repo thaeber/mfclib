@@ -145,7 +145,7 @@ def flowmix(
     ureg = mfclib.unit_registry()
     console = Console(record=True)
     mixture_total = 1.0  #
-    mixture_total = sum(mixture.fractions).to("dimensionless")
+    mixture_total = sum(mixture.fractions.values()).to("dimensionless")
     config: Config = ctx.obj['config']
 
     # get options
@@ -215,16 +215,20 @@ def flowmix(
     # mixture composition table
     df_mixture = pd.DataFrame.from_records(
         [
-            {name: mixture.get(name, '') for name in species},
+            {name: mixture.composition.get(name, '') for name in species},
             {
-                name: format_value(final_mixture[name], mixture.get(name, ''))
+                name: format_value(
+                    final_mixture[name], mixture.composition.get(name, '')
+                )
                 for name in species
             },
         ]
     )
     df_mixture['sum'] = [
-        sum(mixture.fractions).to('%'),
-        format_value(sum(final_mixture.fractions).to('%'), 100.0 * ureg.percent),
+        sum(mixture.fractions.values()).to('%'),
+        format_value(
+            sum(final_mixture.fractions.values()).to('%'), 100.0 * ureg.percent
+        ),
     ]
     df_mixture.insert(0, 'name', ['soll', 'is'])
 

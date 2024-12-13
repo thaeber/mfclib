@@ -40,40 +40,6 @@ class TestConvertValue:
         assert Mixture._convert_value('200ppm') == pytest.approx(0.0002)
 
 
-class TestBalanceMixture:
-    def test_with_floats(self):
-        feed = _balance_mixture(dict(Ar=0.9, O2=0.1))
-        assert feed == dict(Ar=0.9, O2=0.1)
-
-    def test_with_str(self):
-        feed = _balance_mixture(dict(Ar="0.9", O2="0.1"))
-        assert feed == dict(Ar=0.9, O2=0.1)
-
-    def test_with_mixed_types(self):
-        # this might not be meaningful at all, because the mixture fraction should
-        # not be greater than 1
-        feed = _balance_mixture(dict(Ar=0.7, O2="0.1", NO=0.2))
-        assert feed == dict(Ar=0.7, O2=0.1, NO=0.2)
-
-    def test_balance_feed(self):
-        feed = _balance_mixture(dict(NO=0.003, Ar='*', CO=0.005))
-        assert feed == dict(Ar=0.992, NO=0.003, CO=0.005)
-
-    def test_balance_feed_single_species(self):
-        feed = _balance_mixture(dict(N2='*'))
-        assert feed == dict(N2=1.0)
-
-    def test_fails_on_multiple_balance_species(self):
-        with pytest.raises(ValueError):
-            _balance_mixture(dict(Ar='*', N2='*', NO=0.003))
-
-    def test_with_pint_str(self):
-        ureg = mfclib.unit_registry()
-        feed = _balance_mixture(dict(Ar='*', NO='3000ppm'))
-        assert feed == dict(Ar=ureg.Quantity(0.997), NO=ureg.Quantity(3000.0, 'ppm'))
-        assert feed == dict(Ar=0.997, NO=0.003)
-
-
 class TestMixture:
     def test_create_with_init(self):
         mfc = Mixture(composition=dict(N2=0.79, O2=0.21), name='carrier')
@@ -93,8 +59,17 @@ class TestMixture:
         ureg = mfclib.unit_registry()
         assert mfc.name == 'carrier'
         assert mfc.composition == dict(N2='*', O2=21.0 * ureg.percent)
-        assert mfc.fractions == [0.79, 0.21]
-        assert mfc.mole_fractions == [0.79, 0.21]
+        assert mfc.mole_fractions == dict(N2=0.79, O2=0.21)
+
+    def test_fails_on_multiple_balance_species(self):
+        with pytest.raises(ValueError):
+            mfc = Mixture(composition=dict(Ar='*', N2='*', NO=0.003))
+
+    def test_with_balance_species_and_units(self):
+        ureg = mfclib.unit_registry()
+        feed = Mixture(composition=dict(Ar='*', NO='3000ppm'))
+        assert feed.composition == dict(Ar='*', NO=ureg.Quantity(3000.0, 'ppm'))
+        assert feed.mole_fractions == dict(Ar=0.997, NO=0.003)
 
     def test_synthesize_name(self):
         mixture = Mixture(composition=dict(NO=0.003, Ar='*'))
@@ -161,28 +136,99 @@ class TestMixture:
         with pytest.raises(ValueError):
             _ = Mixture(composition=dict(NO='3000ppm', Ar='*', He='*'))
 
-    def test_create_with_dict(self):
-        mixture = Mixture.create({'N2': 0.79, 'O2': 0.21})
-        assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
-        assert mixture.name == 'N2/O2'
+    class TestMixtureCreate:
+        def test_create_with_dict(self):
+            mixture = Mixture.create({'N2': 0.79, 'O2': 0.21})
+            assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
+            assert mixture.name == 'N2/O2'
 
-    def test_create_with_mixture_instance(self):
-        original = Mixture(composition={'N2': 0.79, 'O2': 0.21}, name='air')
-        mixture = Mixture.create(original)
-        assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
-        assert mixture.name == 'air'
+        def test_create_with_mixture_instance(self):
+            original = Mixture(composition={'N2': 0.79, 'O2': 0.21}, name='air')
+            mixture = Mixture.create(original)
+            assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
+            assert mixture.name == 'air'
 
-    def test_create_with_name_and_composition(self):
-        mixture = Mixture.create(
-            {'name': 'air', 'composition': {'N2': 0.79, 'O2': 0.21}}
-        )
-        assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
-        assert mixture.name == 'air'
+        def test_create_with_name_and_composition(self):
+            mixture = Mixture.create(
+                {'name': 'air', 'composition': {'N2': 0.79, 'O2': 0.21}}
+            )
+            assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
+            assert mixture.name == 'air'
 
-    def test_create_with_composition_only(self):
-        mixture = Mixture.create({'composition': {'N2': 0.79, 'O2': 0.21}})
-        assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
-        assert mixture.name == 'N2/O2'
+        def test_create_with_composition_only(self):
+            mixture = Mixture.create({'composition': {'N2': 0.79, 'O2': 0.21}})
+            assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
+            assert mixture.name == 'N2/O2'
+
+    class TestMixtureFractions:
+        def test_fractions_with_simple_composition(self):
+            mfc = Mixture(composition=dict(N2=0.79, O2=0.21))
+            fractions = mfc.fractions
+            assert isinstance(fractions, dict)
+            assert all(isinstance(f, pint.Quantity) for f in fractions.values())
+            assert fractions == dict(N2=pint.Quantity(0.79), O2=pint.Quantity(0.21))
+
+        def test_fractions_with_units(self):
+            ureg = mfclib.unit_registry()
+            mfc = Mixture(composition=dict(N2=0.79, O2='21%'))
+            fractions = mfc.fractions
+            assert isinstance(fractions, dict)
+            assert all(isinstance(f, pint.Quantity) for f in fractions.values())
+            assert fractions == dict(
+                N2=pint.Quantity(0.79), O2=pint.Quantity(21, ureg.percent)
+            )
+
+        def test_fractions_with_balance_species(self):
+            ureg = mfclib.unit_registry()
+            mfc = Mixture(composition=dict(N2='*', O2='21%'))
+            fractions = mfc.fractions
+            assert isinstance(fractions, dict)
+            assert all(isinstance(f, pint.Quantity) for f in fractions.values())
+            assert fractions == dict(
+                N2=pint.Quantity(79, ureg.percent),
+                O2=pint.Quantity(21, ureg.percent),
+            )
+
+        def test_fractions_with_multiple_species(self):
+            ureg = mfclib.unit_registry()
+            mfc = Mixture(composition=dict(N2=0.78, O2='21%', CO2='1%'))
+            fractions = mfc.fractions
+            assert isinstance(fractions, dict)
+            assert all(isinstance(f, pint.Quantity) for f in fractions.values())
+            assert fractions == dict(
+                N2=pint.Quantity(0.78),
+                O2=pint.Quantity(21, ureg.percent),
+                CO2=pint.Quantity(1, ureg.percent),
+            )
+
+        def test_fractions_with_invalid_composition(self):
+            with pytest.raises(ValueError):
+                Mixture(composition=dict(N2='*', O2='*'))
+
+    class TestMixtureGetItem:
+        def test_getitem_with_simple_composition(self):
+            mfc = Mixture(composition=dict(N2=0.79, O2=0.21))
+            assert mfc['N2'] == 0.79
+            assert mfc['O2'] == 0.21
+
+        def test_getitem_with_units(self):
+            ureg = mfclib.unit_registry()
+            mfc = Mixture(composition=dict(N2=0.79, O2='21%'))
+            assert mfc['N2'] == ureg('0.79')
+            assert mfc['O2'] == ureg('21%')
+
+        def test_getitem_with_balance_species(self):
+            ureg = mfclib.unit_registry()
+            mfc = Mixture(composition=dict(N2='*', O2='21%'))
+            assert mfc['N2'] == ureg('79%')
+            assert mfc['O2'] == ureg('21%')
+
+        def test_getitem_with_multiple_species(self):
+            ureg = mfclib.unit_registry()
+            mfc = Mixture(composition=dict(N2=0.78, O2='21%', CO2='1%'))
+            assert mfc['N2'] == 0.78
+            assert mfc['O2'] == ureg('21%')
+            assert mfc['CO2'] == ureg('1%')
 
 
 class TestProportionsForMixture:
