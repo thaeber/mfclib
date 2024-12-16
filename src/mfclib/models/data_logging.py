@@ -18,8 +18,8 @@ class DataLoggingConfig(pydantic.BaseModel):
     filename: str = 'eurotherm-{:%Y-%m-%dT%H-%M-%S}.csv'
     format: str = "%.6g"
     separator: str = ";"
-    rotate_every: Annotated[TimeQ, pydantic.Field(validate_default=True)] = '1min'
-    write_interval: Annotated[TimeQ, pydantic.Field(validate_default=True)] = '10s'
+    rotate_every: TimeQ = TimeQ('1min')
+    write_interval: TimeQ = TimeQ('10s')
     columns: List[str] = [
         'timestamp',
         'processValue',
