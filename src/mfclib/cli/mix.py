@@ -144,7 +144,7 @@ def flowmix(
     # setup
     ureg = mfclib.unit_registry()
     console = Console(record=True)
-    sum(mixture.fractions.values()).to("dimensionless")
+    box_style = box.MARKDOWN if emit_markdown else box.HORIZONTALS
     config: Config = ctx.obj['config']
 
     # get options
@@ -200,7 +200,7 @@ def flowmix(
     footer = {'flowrate': format_value(sum(flow_rates), flowrate)}
 
     # emit gas lines
-    box_style = box.MARKDOWN if emit_markdown else box.HORIZONTALS
+
     emit_table(
         console,
         df_lines,
@@ -231,7 +231,6 @@ def flowmix(
     ]
     df_mixture.insert(0, 'name', ['soll', 'is'])
 
-    box_style = box.MARKDOWN if emit_markdown else box.HORIZONTALS
     emit_table(
         console,
         df_mixture,

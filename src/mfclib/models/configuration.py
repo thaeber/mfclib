@@ -6,8 +6,7 @@ from typing import List, Literal, Optional
 import pydantic
 from omegaconf import OmegaConf
 
-from mfclib.quantity_type import FlowRateQ, TemperatureQ
-
+from ..quantity_type import FlowRateQ, FractionQ, TemperatureQ
 from ..tools import first_or_default
 from .data_logging import DataLoggingConfig
 from .line import MFCLine
@@ -80,7 +79,7 @@ class Config(pydantic.BaseModel):
         line: MFCLine,
         flowrate: FlowRateQ,
         temperature: TemperatureQ,
-    ):
+    ) -> Optional[FractionQ]:
         if mfc := self.get_mfc_by_line(line):
             return mfc.flowrate_to_setpoint(
                 flowrate,

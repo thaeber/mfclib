@@ -20,3 +20,10 @@ class MFCLine(pydantic.BaseModel):
     @classmethod
     def check_composition(cls, value):
         return Mixture.create(value)
+
+    @pydantic.computed_field
+    def mfc_name(self) -> Optional[str]:
+        if self.device is None:
+            return None
+        else:
+            return self.device.mfc

@@ -48,7 +48,7 @@ class TestMixture:
         assert dict(mfc) == dict(N2=0.79, O2=0.21)
 
     def test_from_kws(self):
-        mfc = Mixture.from_kws(N2=0.79, O2=0.21)
+        mfc = Mixture.create(N2=0.79, O2=0.21)
         assert mfc.composition == dict(N2=0.79, O2=0.21)
         assert dict(mfc) == dict(N2=0.79, O2=0.21)
         assert mfc.name == 'N2/O2'
@@ -137,6 +137,17 @@ class TestMixture:
             _ = Mixture(composition=dict(NO='3000ppm', Ar='*', He='*'))
 
     class TestMixtureCreate:
+        def test_return_type(self):
+            mixture = Mixture.create(N2=0.79, O2=0.21)
+            assert isinstance(mixture, Mixture)
+
+        def test_return_type_of_subclass(self):
+            class CustomMixture(Mixture):
+                pass
+
+            mixture = CustomMixture.create(N2=0.79, O2=0.21)
+            assert isinstance(mixture, CustomMixture)
+
         def test_create_with_dict(self):
             mixture = Mixture.create({'N2': 0.79, 'O2': 0.21})
             assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
@@ -159,6 +170,18 @@ class TestMixture:
             mixture = Mixture.create({'composition': {'N2': 0.79, 'O2': 0.21}})
             assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
             assert mixture.name == 'N2/O2'
+
+        def test_create_with_keywords(self):
+            mixture = Mixture.create(N2='*', O2='21%')
+            assert mixture.composition == {'N2': '*', 'O2': 0.21}
+            assert mixture.mole_fractions == {'N2': 0.79, 'O2': 0.21}
+            assert mixture.name == 'N2/O2'
+
+        def test_create_with_keywords_and_name(self):
+            mixture = Mixture.create(N2='*', O2='21%', name='test')
+            assert mixture.composition == {'N2': '*', 'O2': 0.21}
+            assert mixture.mole_fractions == {'N2': 0.79, 'O2': 0.21}
+            assert mixture.name == 'test'
 
     class TestMixtureFractions:
         def test_fractions_with_simple_composition(self):
@@ -230,23 +253,73 @@ class TestMixture:
             assert mfc['O2'] == ureg('21%')
             assert mfc['CO2'] == ureg('1%')
 
+    class TestMixtureCompose:
+        def test_compose_simple(self):
+            sources = [
+                Mixture.create(N2=0.5, O2=0.5),
+                Mixture.create(N2=1.0),
+            ]
+            weights = [0.5, 0.5]
+            result = Mixture.compose(sources, weights, balance_with=None)
+            assert result.composition == {'N2': 0.75, 'O2': 0.25}
+
+        def test_compose_with_balance_species(self):
+            sources = [
+                Mixture.create(N2=0.5, O2=0.5),
+                Mixture.create(N2=1.0),
+            ]
+            weights = [0.5, 0.25]
+            result = Mixture.compose(sources, weights, balance_with='Ar')
+            assert result.composition == {'N2': 0.5, 'O2': 0.25, 'Ar': '*'}
+            assert result.mole_fractions == {'N2': 0.5, 'O2': 0.25, 'Ar': 0.25}
+
+        def test_compose_with_same_balance_species(self):
+            sources = [
+                Mixture.create(N2=0.5, O2=0.5),
+                Mixture.create(N2=1.0),
+            ]
+            weights = [0.5, 0.25]
+            result = Mixture.compose(sources, weights, balance_with='N2')
+            assert result.composition == {'N2': '*', 'O2': 0.25}
+            assert result.mole_fractions == {'N2': 0.75, 'O2': 0.25}
+
+        def test_compose_with_different_weights(self):
+            sources = [
+                Mixture.create(N2='50%', O2='50%'),
+                Mixture.create(N2='*'),
+            ]
+            weights = [0.3, 0.7]
+            result = Mixture.compose(sources, weights, balance_with=None)
+            assert result.composition == {'N2': 0.85, 'O2': 0.15}
+
+        def test_compose_with_invalid_weights_length(self):
+            sources = [
+                Mixture.create(N2=0.5, O2=0.5),
+                Mixture.create(N2=1.0),
+            ]
+            weights = [0.5]
+            with pytest.raises(
+                ValueError, match="Number of sources .* and weights .* must match"
+            ):
+                Mixture.compose(sources, weights, balance_with=None)
+
 
 class TestProportionsForMixture:
     def test_single_supply(self):
         x = supply_proportions_for_mixture(
-            [Mixture.from_kws(name='carrier', N2='*')],
-            Mixture.from_kws(N2=1.0),
+            [Mixture.create(name='carrier', N2='*')],
+            Mixture.create(N2=1.0),
         )
         assert x == pytest.approx([1.0])
 
     def test_complex_sources(self):
         sources = [
-            Mixture.from_kws(Ar=1.0),
-            Mixture.from_kws(O2=1.0),
-            Mixture.from_kws(CO=0.1492, Ar='*'),
-            Mixture.from_kws(NO=0.002959, Ar='*'),
-            Mixture.from_kws(H2='*'),
-            Mixture.from_kws(NO2=0.01072, N2O=0.0, Ar='*'),
+            Mixture.create(Ar=1.0),
+            Mixture.create(O2=1.0),
+            Mixture.create(CO=0.1492, Ar='*'),
+            Mixture.create(NO=0.002959, Ar='*'),
+            Mixture.create(H2='*'),
+            Mixture.create(NO2=0.01072, N2O=0.0, Ar='*'),
         ]
 
         x = supply_proportions_for_mixture(
@@ -261,12 +334,12 @@ class TestProportionsForMixture:
 
     def test_warn_on_invalid_sum(self):
         sources = [
-            Mixture.from_kws(Ar=1.0),
-            Mixture.from_kws(O2=1.0),
-            Mixture.from_kws(CO=0.1492, Ar='*'),
-            Mixture.from_kws(NO=0.002959, Ar='*'),
-            Mixture.from_kws(H2='*'),
-            Mixture.from_kws(NO2=0.01072, N2O=0.0, Ar='*'),
+            Mixture.create(Ar=1.0),
+            Mixture.create(O2=1.0),
+            Mixture.create(CO=0.1492, Ar='*'),
+            Mixture.create(NO=0.002959, Ar='*'),
+            Mixture.create(H2='*'),
+            Mixture.create(NO2=0.01072, N2O=0.0, Ar='*'),
         ]
 
         with pytest.warns(UserWarning, match=r'Inconsistent mixture composition.'):
