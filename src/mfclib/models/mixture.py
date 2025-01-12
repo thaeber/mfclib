@@ -243,6 +243,14 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
         except KeyError:
             return FractionQ(default)
 
+    def as_str(self, include_name=True):
+        comp = [f"{key}={value}" for key, value in self.composition.items()]
+        sep = ", "
+        if include_name:
+            return f"{self.name}({sep.join(comp)})"
+        else:
+            return f"{sep.join(comp)}"
+
     def __getitem__(self, key: str) -> FractionQ:
         return self.balanced.composition[key]
 
@@ -253,9 +261,7 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
         return len(self.composition)
 
     def __repr__(self) -> str:
-        comp = [f"{key}={value}" for key, value in self.composition.items()]
-        sep = ", "
-        return f"[{self.name}]({sep.join(comp)})"
+        return self.as_str(include_name=True)
 
 
 def _strip_unit(value):

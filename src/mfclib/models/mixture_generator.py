@@ -1,6 +1,7 @@
 from typing import List, Literal, Optional, Sequence, cast
 
 import numpy as np
+import pandas as pd
 import pydantic
 import scipy
 
@@ -20,6 +21,33 @@ class MixtureResultComponent(pydantic.BaseModel):
     line: str
     mfc: Optional[str] = None
     setpoint: Optional[FractionQ] = None
+
+
+class MixtureResult(pydantic.BaseModel, Sequence):
+    success: bool
+    components: List[MixtureResultComponent]
+
+    def __getitem__(self, item):
+        return self.components[item]
+
+    def __len__(self):
+        return len(self.components)
+
+    def as_dataframe(self):
+        data = []
+        for component in self.components:
+            data.append(
+                {
+                    'gas': component.gas.name,
+                    'composition': component.gas.as_str(include_name=False),
+                    'weight': component.weight,
+                    'flowrate': component.flowrate,
+                    'line': component.line,
+                    'mfc': component.mfc,
+                    'setpoint': component.setpoint,
+                }
+            )
+        return pd.DataFrame(data)
 
 
 class MixtureGenerator(pydantic.BaseModel):
@@ -52,10 +80,10 @@ class MixtureGenerator(pydantic.BaseModel):
         weights = self.calculate_mixing_ratios(mixture)
 
         # generate output
-        result: List[MixtureResultComponent] = []
+        components: List[MixtureResultComponent] = []
         for weight, line in zip(weights, self._get_lines()):
             flowrate_line = flowrate * weight
-            result.append(
+            components.append(
                 MixtureResultComponent(
                     gas=line.gas,
                     weight=weight,
@@ -68,7 +96,10 @@ class MixtureGenerator(pydantic.BaseModel):
                 )
             )
 
-        return result
+        return MixtureResult(
+            success=True if np.isclose(1.0, np.sum(weights), 1e-3) else False,
+            components=components,
+        )
 
     def calculate_mixing_ratios(self, mixture: Mixture):
         sources = [line.gas for line in self._get_lines()]

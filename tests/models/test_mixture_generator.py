@@ -273,6 +273,7 @@ class TestMixtureGenerator:
 
             result = mg.generate(target_mixture, '2 L/min', '25°C')
 
+            assert result.success == True
             assert len(result) == 3
 
             # line 1
@@ -314,6 +315,7 @@ class TestMixtureGenerator:
             ureg = unit_registry()
             result = mg.generate(target_mixture, 2.0 * ureg.L / ureg.min, '25°C')
 
+            assert result.success == True
             assert len(result) == 4
 
             # line 1
@@ -347,3 +349,21 @@ class TestMixtureGenerator:
             assert result[3].line == 'line4'
             assert result[3].mfc is None
             assert result[3].setpoint == None
+
+        def test_invalid_mixture(self):
+            config = Config(
+                lines=[
+                    MFCLine(name='line1', gas=Mixture.create(N2='*')),
+                    MFCLine(name='line2', gas=Mixture.create(O2='*')),
+                    MFCLine(name='line3', gas=Mixture.create(He='*')),
+                    MFCLine(name='line4', gas=Mixture.create(NH3='1%', He='*')),
+                ]
+            )
+            mg = MixtureGenerator(config=config, lines='all')
+            target_mixture = Mixture.create(NH3='2%', O2='10%', N2='*')
+
+            ureg = unit_registry()
+            result = mg.generate(target_mixture, 2.0 * ureg.L / ureg.min, '25°C')
+
+            assert result.success == False
+            assert len(result) == 4
