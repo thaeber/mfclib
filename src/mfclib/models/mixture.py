@@ -31,15 +31,15 @@ MixtureType: TypeAlias = 'Mixture' | MixtureMapping
 
 
 class Mixture(pydantic.BaseModel, collections.abc.Mapping):
-    name: Optional[str] = None
     composition: Mapping[str, str | FractionQ]
+    name: Optional[str] = None
 
     @classmethod
     def create(
         cls,
         mixture: Optional[MixtureType] = None,
         name: Optional[str] = None,
-        **components: SupportsFloat,
+        **components: str | SupportsFloat,
     ):
         if isinstance(mixture, cls):
             return mixture
@@ -53,6 +53,8 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
                     return cls(name=name, composition=mixture)
         elif components:
             return cls(name=name, composition=components)
+        else:
+            raise ValueError("No valid mixture provided.")
 
     @classmethod
     def compose(
@@ -121,8 +123,8 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
 
     @pydantic.model_validator(mode='after')
     def check_name(self):
-        if not self.name:
-            self.name = "/".join(self.composition.keys())
+        # if not self.name:
+        #     self.name = "/".join(self.composition.keys())
         # ensure mixture can be balanced
         _ = self.get_balance_species()
         return self
@@ -150,6 +152,13 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
 
         converted = {key: func(value) for key, value in composition.items()}
         return converted
+
+    @property
+    def label(self):
+        if self.name:
+            return self.name
+        else:
+            return "/".join(sorted(self.composition.keys()))
 
     @property
     def species(self):
@@ -187,7 +196,7 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
 
         Returns:
             dict: A dictionary where the keys are the component names and the values
-                  are the mole fractions (floats) of each component in the mixture.
+                are the mole fractions (floats) of each component in the mixture.
         """
         return {key: float(value.m_as('')) for key, value in self.fractions.items()}
 
@@ -243,13 +252,12 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
         except KeyError:
             return FractionQ(default)
 
-    def as_str(self, include_name=True):
-        comp = [f"{key}={value}" for key, value in self.composition.items()]
+    def as_str(self):
+        keys = sorted(self.composition.keys())
+        keys = list(self.composition.keys())
+        comp = [f'{key}={self.composition[key]}' for key in keys]
         sep = ", "
-        if include_name:
-            return f"{self.name}({sep.join(comp)})"
-        else:
-            return f"{sep.join(comp)}"
+        return f"{sep.join(comp)}"
 
     def __getitem__(self, key: str) -> FractionQ:
         return self.balanced.composition[key]
@@ -261,7 +269,7 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
         return len(self.composition)
 
     def __repr__(self) -> str:
-        return self.as_str(include_name=True)
+        return f'{self.label}[{self.as_str()}]'
 
 
 def _strip_unit(value):

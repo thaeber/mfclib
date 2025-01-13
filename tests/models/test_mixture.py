@@ -51,7 +51,8 @@ class TestMixture:
         mfc = Mixture.create(N2=0.79, O2=0.21)
         assert mfc.composition == dict(N2=0.79, O2=0.21)
         assert dict(mfc) == dict(N2=0.79, O2=0.21)
-        assert mfc.name == 'N2/O2'
+        assert mfc.name is None
+        assert mfc.label == 'N2/O2'
 
     def test_create_with_balance_species(self):
         mfc = Mixture(composition=dict(N2='*', O2='21%'), name='carrier')
@@ -70,13 +71,6 @@ class TestMixture:
         feed = Mixture(composition=dict(Ar='*', NO='3000ppm'))
         assert feed.composition == dict(Ar='*', NO=ureg.Quantity(3000.0, 'ppm'))
         assert feed.mole_fractions == dict(Ar=0.997, NO=0.003)
-
-    def test_synthesize_name(self):
-        mixture = Mixture(composition=dict(NO=0.003, Ar='*'))
-        assert mixture.name == 'NO/Ar'
-
-        mixture = Mixture(composition=dict(Ar='*', NO=0.003))
-        assert mixture.name == 'Ar/NO'
 
     def test_conversion_factor(self):
         mfc = Mixture(composition=dict(N2=0.79, O2=0.21))
@@ -151,7 +145,8 @@ class TestMixture:
         def test_create_with_dict(self):
             mixture = Mixture.create({'N2': 0.79, 'O2': 0.21})
             assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
-            assert mixture.name == 'N2/O2'
+            assert mixture.name is None
+            assert mixture.label == 'N2/O2'
 
         def test_create_with_mixture_instance(self):
             original = Mixture(composition={'N2': 0.79, 'O2': 0.21}, name='air')
@@ -169,19 +164,38 @@ class TestMixture:
         def test_create_with_composition_only(self):
             mixture = Mixture.create({'composition': {'N2': 0.79, 'O2': 0.21}})
             assert mixture.composition == {'N2': 0.79, 'O2': 0.21}
-            assert mixture.name == 'N2/O2'
+            assert mixture.name is None
+            assert mixture.label == 'N2/O2'
 
         def test_create_with_keywords(self):
             mixture = Mixture.create(N2='*', O2='21%')
             assert mixture.composition == {'N2': '*', 'O2': 0.21}
             assert mixture.mole_fractions == {'N2': 0.79, 'O2': 0.21}
-            assert mixture.name == 'N2/O2'
+            assert mixture.name is None
+            assert mixture.label == 'N2/O2'
 
         def test_create_with_keywords_and_name(self):
             mixture = Mixture.create(N2='*', O2='21%', name='test')
             assert mixture.composition == {'N2': '*', 'O2': 0.21}
             assert mixture.mole_fractions == {'N2': 0.79, 'O2': 0.21}
             assert mixture.name == 'test'
+
+    class TestMixtureLabel:
+        def test_label_with_name(self):
+            mixture = Mixture(composition=dict(N2=0.79, O2=0.21), name='air')
+            assert mixture.label == 'air'
+
+        def test_label_without_name(self):
+            mixture = Mixture(composition=dict(N2=0.79, O2=0.21))
+            assert mixture.label == 'N2/O2'
+
+        def test_label_with_sorted_species(self):
+            mixture = Mixture(composition=dict(O2=0.21, N2=0.79))
+            assert mixture.label == 'N2/O2'
+
+        def test_label_with_single_species(self):
+            mixture = Mixture(composition=dict(N2=1.0))
+            assert mixture.label == 'N2'
 
     class TestMixtureFractions:
         def test_fractions_with_simple_composition(self):

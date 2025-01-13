@@ -1,20 +1,22 @@
 lines:
   - name: MFC A
-    gas: {"N2": "*"}
+    gas: { "N2": "*" }
     device:
       mfc: Device/MFC/Brooks01
       calibration: latest
     #   driver: MKSAnalog
     #   channel: 1
   - name: MFC 4
-    gas: {"NH3": "0.979%", "He": "*"}
+    gas: { "NH3": "0.979%", "He": "*" }
     device:
       mfc: Device/MFC/Bronkhorst11
       calibration: latest
     #   driver: FlowBus1
     #   channel: 4
   - name: MFC 5
-    gas: {"O2": "*"}
+    gas: { "O2": "*" }
+  - name: MFC 6
+    gas: { "CO2": "*" }
 
 controllers:
   - name: Device/MFC/Brooks01
@@ -77,9 +79,6 @@ app_logging:
       encoding: utf-8
       when: "midnight"
       interval: 1
-
-
-
 # drivers:
 #   - name: MKSAnalog
 #     protocol: MKS-PAC100-Modbus

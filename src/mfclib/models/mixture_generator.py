@@ -1,6 +1,7 @@
 from typing import List, Literal, Optional, Sequence, cast
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import pydantic
 import scipy
@@ -25,6 +26,7 @@ class MixtureResultComponent(pydantic.BaseModel):
 
 class MixtureResult(pydantic.BaseModel, Sequence):
     success: bool
+    mixture: Mixture
     components: List[MixtureResultComponent]
 
     def __getitem__(self, item):
@@ -38,8 +40,8 @@ class MixtureResult(pydantic.BaseModel, Sequence):
         for component in self.components:
             data.append(
                 {
-                    'gas': component.gas.name,
-                    'composition': component.gas.as_str(include_name=False),
+                    'gas': component.gas.label,
+                    'composition': component.gas.as_str(),
                     'weight': component.weight,
                     'flowrate': component.flowrate,
                     'line': component.line,
@@ -70,18 +72,22 @@ class MixtureGenerator(pydantic.BaseModel):
         return self
 
     def generate(
-        self, mixture: Mixture, flowrate: FlowRateQ, temperature: TemperatureQ
+        self,
+        mixture: Mixture,
+        flowrate: str | FlowRateQ,
+        temperature: str | TemperatureQ,
     ):
         # validate input
         flowrate = FlowRateQ(flowrate)
         temperature = TemperatureQ(temperature)
 
         # calculate mixing ratios
+        lines = self._get_lines()
         weights = self.calculate_mixing_ratios(mixture)
 
         # generate output
         components: List[MixtureResultComponent] = []
-        for weight, line in zip(weights, self._get_lines()):
+        for weight, line in zip(weights, lines):
             flowrate_line = flowrate * weight
             components.append(
                 MixtureResultComponent(
@@ -98,6 +104,7 @@ class MixtureGenerator(pydantic.BaseModel):
 
         return MixtureResult(
             success=True if np.isclose(1.0, np.sum(weights), 1e-3) else False,
+            mixture=Mixture.compose([c.gas for c in components], weights),
             components=components,
         )
 
@@ -115,7 +122,9 @@ class MixtureGenerator(pydantic.BaseModel):
             ]
 
     @classmethod
-    def _calculate_mixing_ratios(cls, sources: Sequence[Mixture], mixture: Mixture):
+    def _calculate_mixing_ratios(
+        cls, sources: Sequence[Mixture], mixture: Mixture
+    ) -> npt.NDArray:
         if not sources:
             raise ValueError("No sources provided")
 
@@ -140,13 +149,13 @@ class MixtureGenerator(pydantic.BaseModel):
         species = mixture_species.copy()
         if balance_with:
             species.discard(balance_with)
-        x = cls._solve_nnls_system(sources, mixture, species)
+        x = cls._solve_nnls_system(sources, mixture, sorted(species))
         mixture = Mixture.compose(sources, x, balance_with=balance_with)
 
         # solving the system again, this time with the balance species and using
         # all species in the sources
         x = MixtureGenerator._solve_nnls_system(
-            sources, mixture.balanced, source_species
+            sources, mixture.balanced, sorted(source_species)
         )
 
         # set very small values to zero
