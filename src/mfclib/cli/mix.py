@@ -144,99 +144,57 @@ def flowmix(
     # setup
     ureg = mfclib.unit_registry()
     console = Console(record=True)
-    sum(mixture.fractions.values()).to("dimensionless")
+    box_style = box.MARKDOWN if emit_markdown else box.HORIZONTALS
     config: Config = ctx.obj['config']
 
-    # get options
-    sources = [line.gas for line in config.lines]
-    Tref = reference_temperature
-
-    # list of all species
-    species = set(mixture.keys())
-    for source in sources:
-        species |= set(source.species)
-    species = sorted(species)
-
-    # solve for flow rates
-    source_fractions = models.supply_proportions_for_mixture(sources, mixture)
-
-    # source flow rates at target and reference temperature
-    T_ratio = Tref / temperature
-    flow_rates = source_fractions * flowrate
-    flow_rates * T_ratio
-
-    # final mixture composition
-    final_mixture = mix_sources(sources, source_fractions)
+    # calculate mixture
+    mg = models.MixtureGenerator(config=config)
+    result = mg.generate(mixture, flowrate, temperature)
 
     # output
     console.print(f"Calculating volumetric flow rates for: {mixture!r}")
     console.print(f'Target flow rate: {flowrate} @ {temperature}')
 
-    # gather results in DataFrame
-    df_lines = pd.DataFrame()
-    df_lines['gas'] = [line.gas.name for line in config.lines]
-    df_lines['composition'] = [
-        ", ".join([f"{key}={value}" for key, value in line.gas.items()])
-        for line in config.lines
-    ]
-    df_lines['flowrate'] = [f for f in flow_rates]
-    df_lines['setpoint'] = pipe(
-        zip(config.lines, flow_rates),
-        partial(
-            starmap,
-            lambda line, value: config.flowrate_to_setpoint(line, value, temperature),
-        ),
-        partial(replace, is_none, format_with_status(np.nan, StatusFlag.WARNING)),
-        list,
-    )
-    df_lines['line'] = [line.name for line in config.lines]
-    df_lines['MFC'] = pipe(
-        config.lines,
-        partial(map, config.get_mfc_by_line),
-        partial(map_if, is_not_none, lambda x: x.name),
-        partial(replace, is_none, format_with_status('missing', StatusFlag.WARNING)),
-        list,
-    )
-    footer = {'flowrate': format_value(sum(flow_rates), flowrate)}
-
     # emit gas lines
-    box_style = box.MARKDOWN if emit_markdown else box.HORIZONTALS
+    df = result.as_dataframe()
+    df['weight'] = df['weight'].round(3)
     emit_table(
         console,
-        df_lines,
+        df,
         box=box_style,
         header={'flowrate': f'flowrate @ {temperature}'},
-        footer=footer,
+        # footer=footer,
+        footer={'flowrate': format_value(df['flowrate'].sum(), flowrate)},
         justify={'flowrate': 'right', 'setpoint': 'right'},
         column_style={'setpoint': 'bold'},
     )
 
-    # mixture composition table
-    df_mixture = pd.DataFrame.from_records(
+    # emit mixture composition
+    species = sorted(result.mixture.species)
+    df = pd.DataFrame.from_records(
         [
             {name: mixture.composition.get(name, '') for name in species},
             {
                 name: format_value(
-                    final_mixture[name], mixture.composition.get(name, '')
+                    result.mixture[name], mixture.composition.get(name, '')
                 )
                 for name in species
             },
         ]
     )
-    df_mixture['sum'] = [
+    df['sum'] = [
         sum(mixture.fractions.values()).to('%'),
         format_value(
-            sum(final_mixture.fractions.values()).to('%'), 100.0 * ureg.percent
+            sum(result.mixture.fractions.values()).to('%'), 100.0 * ureg.percent
         ),
     ]
-    df_mixture.insert(0, 'name', ['soll', 'is'])
+    df.insert(0, 'name', ['soll', 'is'])
 
-    box_style = box.MARKDOWN if emit_markdown else box.HORIZONTALS
     emit_table(
         console,
-        df_mixture,
+        df,
         box=box_style,
-        justify={name: 'right' for name in df_mixture.columns},
+        justify={name: 'right' for name in df.columns},
         header={'name': ''},
         column_style={'sum': 'dim'},
     )

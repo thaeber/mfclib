@@ -2,10 +2,13 @@ import collections.abc
 import textwrap
 import warnings
 from typing import (
+    Any,
+    Dict,
     Iterable,
     Literal,
     Mapping,
     Optional,
+    Sequence,
     SupportsFloat,
     TypeAlias,
     Union,
@@ -28,21 +31,59 @@ MixtureType: TypeAlias = 'Mixture' | MixtureMapping
 
 
 class Mixture(pydantic.BaseModel, collections.abc.Mapping):
-    name: Optional[str] = None
     composition: Mapping[str, str | FractionQ]
+    name: Optional[str] = None
 
-    @staticmethod
-    def create(mixture: MixtureType):
-        if isinstance(mixture, Mixture):
+    @classmethod
+    def create(
+        cls,
+        mixture: Optional[MixtureType] = None,
+        name: Optional[str] = None,
+        **components: str | SupportsFloat,
+    ):
+        if isinstance(mixture, cls):
             return mixture
-        else:
+        elif mixture is not None:
             match mixture:
                 case {'name': name, 'composition': composition}:
-                    return Mixture(name=name, composition=composition)
+                    return cls(name=name, composition=composition)
                 case {'composition': composition}:
-                    return Mixture(composition=composition)
+                    return cls(name=name, composition=composition)
                 case _:
-                    return Mixture(composition=mixture)
+                    return cls(name=name, composition=mixture)
+        elif components:
+            return cls(name=name, composition=components)
+        else:
+            raise ValueError("No valid mixture provided.")
+
+    @classmethod
+    def compose(
+        cls,
+        sources: Sequence[MixtureType],
+        weights: Sequence[SupportsFloat],
+        balance_with: Optional[str] = None,
+    ):
+        # convert sources to Mixture instances
+        sources = [cls.create(source) for source in sources]
+
+        # check that sources and weights have the same length
+        if len(sources) != len(weights):
+            raise ValueError(
+                f"Number of sources ({len(sources)}) and weights ({len(weights)}) must match."
+            )
+
+        result: Dict[str, Any] = dict()
+        for source, weight in zip(sources, weights):
+            for key, value in source.items():
+                if key in result:
+                    result[key] += weight * value
+                else:
+                    result[key] = weight * value
+
+        if balance_with:
+            result[balance_with] = balanceSpeciesIndicator()
+
+        return cls(composition=result)
 
     @classmethod
     def _convert_value(
@@ -82,8 +123,8 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
 
     @pydantic.model_validator(mode='after')
     def check_name(self):
-        if not self.name:
-            self.name = "/".join(self.composition.keys())
+        # if not self.name:
+        #     self.name = "/".join(self.composition.keys())
         # ensure mixture can be balanced
         _ = self.get_balance_species()
         return self
@@ -111,6 +152,13 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
 
         converted = {key: func(value) for key, value in composition.items()}
         return converted
+
+    @property
+    def label(self):
+        if self.name:
+            return self.name
+        else:
+            return "/".join(sorted(self.composition.keys()))
 
     @property
     def species(self):
@@ -148,7 +196,7 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
 
         Returns:
             dict: A dictionary where the keys are the component names and the values
-                  are the mole fractions (floats) of each component in the mixture.
+                are the mole fractions (floats) of each component in the mixture.
         """
         return {key: float(value.m_as('')) for key, value in self.fractions.items()}
 
@@ -175,10 +223,6 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
         """
         return self.conversion_factor
 
-    @classmethod
-    def from_kws(cls, name: str | None = None, **components: AmountType):
-        return Mixture(composition=components, name=name)
-
     @property
     def balanced(self):
         # copy mixture composition
@@ -200,7 +244,22 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
 
             return Mixture(name=self.name, composition=composition)
 
-    def __getitem__(self, key):
+    def get(
+        self, key: str, default: SupportsFloat | FractionQ = FractionQ(np.nan)
+    ) -> FractionQ:
+        try:
+            return self[key]
+        except KeyError:
+            return FractionQ(default)
+
+    def as_str(self):
+        keys = sorted(self.composition.keys())
+        keys = list(self.composition.keys())
+        comp = [f'{key}={self.composition[key]}' for key in keys]
+        sep = ", "
+        return f"{sep.join(comp)}"
+
+    def __getitem__(self, key: str) -> FractionQ:
         return self.balanced.composition[key]
 
     def __iter__(self):
@@ -210,9 +269,7 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
         return len(self.composition)
 
     def __repr__(self) -> str:
-        comp = [f"{key}={value}" for key, value in self.composition.items()]
-        sep = ", "
-        return f"[{self.name}]({sep.join(comp)})"
+        return f'{self.label}[{self.as_str()}]'
 
 
 def _strip_unit(value):
