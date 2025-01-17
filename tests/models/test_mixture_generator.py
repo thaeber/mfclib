@@ -273,7 +273,7 @@ class TestMixtureGenerator:
 
             result = mg.generate(target_mixture, '2 L/min', '25°C')
 
-            assert result.success == True
+            assert result.success is True
             assert result.mixture == Mixture.create(N2='79%', O2='21%', He=0.0)
             assert len(result) == 3
 
@@ -283,7 +283,7 @@ class TestMixtureGenerator:
             assert result[0].flowrate.m_as('L/min') == pytest.approx(1.58)
             assert result[0].line == 'line1'
             assert result[0].mfc is None
-            assert result[0].setpoint == None
+            assert result[0].setpoint is None
 
             # line 2
             assert result[1].gas == Mixture.create(O2='*')
@@ -291,7 +291,7 @@ class TestMixtureGenerator:
             assert result[1].flowrate.m_as('L/min') == pytest.approx(0.42)
             assert result[1].line == 'line2'
             assert result[1].mfc is None
-            assert result[1].setpoint == None
+            assert result[1].setpoint is None
 
             # line 3
             assert result[2].gas == Mixture.create(He='*')
@@ -299,7 +299,7 @@ class TestMixtureGenerator:
             assert result[2].flowrate.m_as('L/min') == pytest.approx(0.0)
             assert result[2].line == 'line3'
             assert result[2].mfc is None
-            assert result[2].setpoint == None
+            assert result[2].setpoint is None
 
         def test_with_balance_species(self):
             config = Config(
@@ -316,7 +316,7 @@ class TestMixtureGenerator:
             ureg = unit_registry()
             result = mg.generate(target_mixture, 2.0 * ureg.L / ureg.min, '25°C')
 
-            assert result.success == True
+            assert result.success is True
             assert result.mixture == Mixture.create(
                 NH3='1000ppm', O2='10%', N2=0.8, He='9.9%'
             )
@@ -328,7 +328,7 @@ class TestMixtureGenerator:
             assert result[0].flowrate.m_as('L/min') == pytest.approx(1.6)
             assert result[0].line == 'line1'
             assert result[0].mfc is None
-            assert result[0].setpoint == None
+            assert result[0].setpoint is None
 
             # line 2
             assert result[1].gas == Mixture.create(O2='*')
@@ -336,7 +336,7 @@ class TestMixtureGenerator:
             assert result[1].flowrate.m_as('L/min') == pytest.approx(0.2)
             assert result[1].line == 'line2'
             assert result[1].mfc is None
-            assert result[1].setpoint == None
+            assert result[1].setpoint is None
 
             # line 3
             assert result[2].gas == Mixture.create(He='*')
@@ -344,7 +344,7 @@ class TestMixtureGenerator:
             assert result[2].flowrate.m_as('L/min') == pytest.approx(0.0)
             assert result[2].line == 'line3'
             assert result[2].mfc is None
-            assert result[2].setpoint == None
+            assert result[2].setpoint is None
 
             # line 4
             assert result[3].gas == Mixture.create(NH3='1%', He='*')
@@ -352,7 +352,7 @@ class TestMixtureGenerator:
             assert result[3].flowrate.m_as('L/min') == pytest.approx(0.2)
             assert result[3].line == 'line4'
             assert result[3].mfc is None
-            assert result[3].setpoint == None
+            assert result[3].setpoint is None
 
         def test_invalid_mixture(self):
             config = Config(
@@ -369,5 +369,5 @@ class TestMixtureGenerator:
             ureg = unit_registry()
             result = mg.generate(target_mixture, 2.0 * ureg.L / ureg.min, '25°C')
 
-            assert result.success == False
+            assert result.success is False
             assert len(result) == 4

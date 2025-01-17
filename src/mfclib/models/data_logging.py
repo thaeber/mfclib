@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Annotated, Dict, List, Literal
+from typing import Dict, List, Literal
 
 import pydantic
 

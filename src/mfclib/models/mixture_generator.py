@@ -6,7 +6,7 @@ import pandas as pd
 import pydantic
 import scipy
 
-from mfclib.tools import first, validate_dimension
+from mfclib.tools import first
 
 from ..quantity_type import FlowRateQ, FractionQ, TemperatureQ
 from .configuration import Config
@@ -67,7 +67,8 @@ class MixtureGenerator(pydantic.BaseModel):
             requested_lines = set(self.lines)
             if not (requested_lines <= available_lines):
                 raise ValueError(
-                    f'Some lines are not available in the configuration: {requested_lines - available_lines}'
+                    'Some lines are not available in the configuration: '
+                    f'{requested_lines - available_lines}'
                 )
         return self
 

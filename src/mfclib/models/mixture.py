@@ -69,7 +69,8 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
         # check that sources and weights have the same length
         if len(sources) != len(weights):
             raise ValueError(
-                f"Number of sources ({len(sources)}) and weights ({len(weights)}) must match."
+                f"Number of sources ({len(sources)}) and weights ({len(weights)}) "
+                "must match."
             )
 
         result: Dict[str, Any] = dict()
