@@ -17,6 +17,11 @@ lines:
     gas: { "O2": "*" }
   - name: MFC 6
     gas: { "CO2": "*" }
+  - name: MFC 2
+    gas: { "NO": "0.95%", "He": "*" }
+    device:
+      mfc: Device/MFC/Bronkhorst12
+      calibration: latest
 
 controllers:
   - name: Device/MFC/Brooks01
@@ -44,6 +49,24 @@ controllers:
       make: ELFlow Select
       model: F-201CV-500-RGD-33-K
       serial_number: M23215384E
+      specifications: "500 ml/min N2, 4 bar"
+    calibrations:
+      - date: 2024-06-20
+        gas:
+          N2: "*"
+        temperature: 20 degC
+        method: linear
+        offset: 0 ml/min
+        slope: 500 mL/min
+    device:
+      connection: FlowBus
+
+  - name: Device/MFC/Bronkhorst12
+    info:
+      manufacturer: Bronkhorst
+      make: ELFlow Select
+      model: F-201CV-500-RGD-33-K
+      serial_number: M23215384F
       specifications: "500 ml/min N2, 4 bar"
     calibrations:
       - date: 2024-06-20
