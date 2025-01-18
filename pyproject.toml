@@ -22,6 +22,7 @@ pandas = "^2.0"
 deprecation = "^2.1.0"
 omegaconf = "^2.3"
 pint-pandas = ">=0.6"
+grpcio = {extras = ["protobuf"], version = "^1.69"}
 
 
 [tool.poetry.group.dev.dependencies]
