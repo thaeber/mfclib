@@ -1,12 +1,13 @@
+from ipaddress import IPv4Address
 import logging
 from os import PathLike
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Annotated
 
 import pydantic
 from omegaconf import OmegaConf
 
-from ..quantity_type import FlowRateQ, FractionQ, TemperatureQ
+from ..quantity_type import FlowRateQ, FractionQ, TemperatureQ, TimeQ
 from ..tools import first_or_default
 from .data_logging import DataLoggingConfig
 from .line import MFCLine
@@ -17,6 +18,17 @@ logger = logging.getLogger(__name__)
 LogLevelType = Literal[
     'NOTSET', 'DEBUG', 'INFO', 'WARN', 'WARNING', 'ERROR', 'FATAL', 'CRITICAL'
 ]
+
+
+class ServerConfig(pydantic.BaseModel):
+    ip: IPv4Address = IPv4Address('127.0.0.1')
+    port: int = 50061
+    timeout: Annotated[TimeQ, pydantic.Field(validate_default=True)] = '5s'
+
+
+class SerialPortConfig(pydantic.BaseModel):
+    port: str = 'COM1'
+    baudRate: int = 19200
 
 
 class AppLogging(pydantic.BaseModel):
@@ -32,6 +44,7 @@ class Config(pydantic.BaseModel):
     controllers: List[MFC] = pydantic.Field(default_factory=list)
     logging: Optional[DataLoggingConfig] = None
     app_logging: Optional[AppLogging] = None
+    server: ServerConfig = ServerConfig()
 
     @pydantic.model_validator(mode='after')
     def check_for_duplicated_controller_names(self):

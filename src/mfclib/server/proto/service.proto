@@ -1,0 +1,18 @@
+syntax = "proto3";
+option py_generic_services = true;
+
+import "google/protobuf/timestamp.proto";
+
+service MFCController {
+    // Terminate/stop server.
+    rpc StopServer(StopRequest) returns (Empty) {}
+
+    // Does nothing. Used to check sever health.
+    rpc ServerHealthCheck(Empty) returns (Empty) {}
+}
+
+message Empty {}
+
+message StopRequest {}
+
+

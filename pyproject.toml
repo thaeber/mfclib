@@ -35,6 +35,8 @@ pytest-watcher = "^0.4"
 git-changelog = "^2.5"
 pre-commit = "^3.7"
 bump-my-version = "^0.21"
+grpc-stubs = "^1.53"
+mypy-protobuf = "^3.6"
 
 [build-system]
 requires = ["poetry-core"]
