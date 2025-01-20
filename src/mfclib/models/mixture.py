@@ -272,6 +272,21 @@ class Mixture(pydantic.BaseModel, collections.abc.Mapping):
     def __repr__(self) -> str:
         return f'{self.label}[{self.as_str()}]'
 
+    def assert_equal_composition(self, other: MixtureType):
+        other = Mixture.create(other)
+        assert set(self.species) == set(other.species)
+
+        try:
+            import pytest
+
+            for key in self.species:
+                assert self[key].m_as('') == pytest.approx(
+                    other[key].m_as(''), abs=1e-6
+                )
+        except ImportError:
+            for key in self.species:
+                assert np.allclose(self[key].m_as(''), other[key].m_as(''), atol=1e-6)
+
 
 def _strip_unit(value):
     try:
