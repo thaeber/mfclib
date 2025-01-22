@@ -274,7 +274,9 @@ class TestMixtureGenerator:
             result = mg.generate(target_mixture, '2 L/min', '25°C')
 
             assert result.success is True
-            assert result.mixture == Mixture.create(N2='79%', O2='21%', He=0.0)
+            result.mixture.assert_equal_composition(
+                Mixture.create(N2='79%', O2='21%', He=0.0)
+            )
             assert len(result) == 3
 
             # line 1
@@ -317,8 +319,8 @@ class TestMixtureGenerator:
             result = mg.generate(target_mixture, 2.0 * ureg.L / ureg.min, '25°C')
 
             assert result.success is True
-            assert result.mixture == Mixture.create(
-                NH3='1000ppm', O2='10%', N2=0.8, He='9.9%'
+            result.mixture.assert_equal_composition(
+                Mixture.create(NH3='1000ppm', O2='10%', N2=0.8, He='9.9%')
             )
             assert len(result) == 4
 
