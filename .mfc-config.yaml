@@ -30,7 +30,7 @@ lines:
       mfc: Device/MFC/Bronkhorst08
       calibration: latest
   - name: MFC 6
-    gas: { "NH3": "0.979%", "He": "*" }
+    gas: { "CO2": "*" }
     device:
       mfc: Device/MFC/Bronkhorst12
       calibration: latest
