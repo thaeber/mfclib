@@ -11,18 +11,18 @@ mfc = 'mfclib.cli.main:run'
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0.0"
-click = "^8.1"
-numpy = "^1.25"
-scipy = "^1.11"
+click = ">=8.1"
+numpy = ">=1.25"
+scipy = ">=1.11"
 pint = ">=0.24"
-rich = "^13.4"
-pydantic = "^2.1"
-ruamel-yaml = "^0.17.32"
-pandas = "^2.0"
-deprecation = "^2.1.0"
-omegaconf = "^2.3"
+rich = ">=13.4"
+pydantic = ">=2.1"
+ruamel-yaml = ">=0.17.32"
+pandas = ">=2.0"
+deprecation = ">=2.1.0"
+omegaconf = ">=2.3"
 pint-pandas = ">=0.6"
-grpcio = {extras = ["protobuf"], version = "^1.69"}
+grpcio = {extras = ["protobuf"], version = ">=1.69"}
 
 
 [tool.poetry.group.dev.dependencies]
