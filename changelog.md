@@ -1,4 +1,12 @@
 <!-- insertion marker -->
+<a name="v0.2.5"></a>
+
+## [v0.2.5](https://github.com/thaeber/mfclib/compare/v0.2.4...v0.2.5) (2025-03-06)
+
+### Bug Fixes
+
+- Relaxed limits on dependency versions ([08718f8](https://github.com/thaeber/mfclib/commit/08718f83296d1924f6dc3b0cc28bfec55add3c9d))
+
 <a name="v0.2.4"></a>
 
 ## [v0.2.4](https://github.com/thaeber/mfclib/compare/v0.2.3...v0.2.4) (2025-03-06)
