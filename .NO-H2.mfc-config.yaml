@@ -10,9 +10,9 @@ lines:
       mfc: Device/MFC/Bronkhorst01
       calibration: latest
   - name: MFC 2
-    gas: { "CO": "1.016%", "He": "*" }
+    gas: { "H2": "*" }
     device:
-      mfc: Device/MFC/Bronkhorst17
+      mfc: Device/MFC/Bronkhorst13
       calibration: latest
   - name: MFC 3
     gas: { "CH4": "*" }
@@ -34,26 +34,6 @@ lines:
     device:
       mfc: Device/MFC/Bronkhorst12
       calibration: latest
-  # - name: MFC 7
-  #   gas: { "H2": "*" }
-  #   device:
-  #     mfc: Device/MFC/Bronkhorst16
-  #     calibration: latest
-  - name: MFC 8
-    gas: { "H2": "*" }
-    device:
-      mfc: Device/MFC/Bronkhorst14
-      calibration: latest
-  - name: MFC 9
-    gas: { "CO2": "*" }
-    # device:
-    #   mfc: Device/MFC/Bronkhorst10
-    #   calibration: latest
-  # - name: MFC 10
-  #   gas: { "CO2": "*" }
-  #   device:
-  #     mfc: Device/MFC/Bronkhorst13
-  #     calibration: latest
 
 controllers:
   - name: Device/MFC/Brooks01
@@ -183,24 +163,6 @@ controllers:
     device:
       connection: FlowBus
 
-  - name: Device/MFC/Bronkhorst14
-    info:
-      manufacturer: Bronkhorst
-      make: ELFlow Select
-      model: F-201CV-500-RAD-33-V
-      serial_number: M8205145F
-      specifications: "300 ml/min H2, 2 bar"
-    calibrations:
-      - date: 2012-01-01
-        gas:
-          H2: "*"
-        temperature: 20 degC
-        method: linear
-        offset: 0 ml/min
-        slope: 300 mL/min
-    device:
-      connection: FlowBus
-
   - name: Device/MFC/Bronkhorst15
     info:
       manufacturer: Bronkhorst
@@ -216,40 +178,6 @@ controllers:
         method: linear
         offset: 0 ml/min
         slope: 5 L/min
-
-  - name: Device/MFC/Bronkhorst16
-    info:
-      manufacturer: Bronkhorst
-      make: ELFlow Select
-      model: F-201CV-002-RGD-33-K
-      serial_number: M15211257E
-      specifications: "3 ml/min N2, 6 bar"
-    calibrations:
-      - date: 2012-01-01
-        gas:
-          N2: "*"
-        temperature: 20 degC
-        method: linear
-        offset: 0 ml/min
-        slope: 3 mL/min
-    device:
-      connection: FlowBus
-
-  - name: Device/MFC/Bronkhorst17
-    info:
-      manufacturer: Bronkhorst
-      make: ELFlow Select
-      model: F-201CV-100-RAD-33-K
-      serial_number: M14213470A
-      specifications: "100 mL/min N2, 2 bar"
-    calibrations:
-      - date: 2008-01-01
-        gas:
-          N2: "*"
-        temperature: 20 degC
-        method: linear
-        offset: 0 ml/min
-        slope: 100 mL/min
 
 app_logging:
   disable_logging: False
