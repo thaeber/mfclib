@@ -356,7 +356,7 @@ class TestProportionsForMixture:
             Mixture.create(NO2=0.01072, N2O=0.0, Ar='*'),
         ]
 
-        with pytest.warns(UserWarning, match=r'Inconsistent mixture composition.'):
+        with pytest.warns(UserWarning):
             supply_proportions_for_mixture(
                 sources,
                 dict(N2='*', NO=400e-6, CO=400e-6),

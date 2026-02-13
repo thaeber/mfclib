@@ -1,46 +1,34 @@
-[tool.poetry]
+[project]
 name = "mfclib"
 version = "0.2.5"
-description = "A small Python module to calculate flow rates for gas mixtures."
-authors = ["Thomas Haeber <thomas.haeber@kit.edu>"]
+description = "A small Python module to manage mass flow controllers for gas mixtures."
 readme = "README.md"
-packages = [{ include = "mfclib", from = "src" }]
+requires-python = ">=3.14"
+authors = [
+    { name = "Thomas Haeber" }
+]
+maintainers = [
+    { name = "Thomas Haeber" }
+]
+dependencies = [
+    "click>=8.3.1",
+    "deprecation>=2.1.0",
+    "grpcio[protobuf]>=1.78.0",
+    "numpy>=2.4.2",
+    "omegaconf>=2.3.0",
+    "pandas>=3.0.0",
+    "pint>=0.25.2",
+    "pydantic>=2.12.5",
+    "rich>=14.3.2",
+    "scipy>=1.17.0",
+]
 
-[tool.poetry.scripts]
-mfc = 'mfclib.cli.main:run'
+[project.scripts]
+mfc = "mfclib.cli.main:run"
 
-[tool.poetry.dependencies]
-python = ">=3.10,<4.0.0"
-click = ">=8.1"
-numpy = ">=1.25"
-scipy = ">=1.11"
-pint = ">=0.24"
-rich = ">=13.4"
-pydantic = ">=2.1"
-ruamel-yaml = ">=0.17.32"
-pandas = ">=2.0"
-deprecation = ">=2.1.0"
-omegaconf = ">=2.3"
-pint-pandas = ">=0.6"
-grpcio = {extras = ["protobuf"], version = ">=1.69"}
-
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.4"
-pylint = "^2.17"
-jupyter = "^1.0"
-black = "^23.7"
-toolz = "^0.12"
-pytest-watcher = "^0.4"
-git-changelog = "^2.5"
-pre-commit = "^3.7"
-bump-my-version = "^0.21"
-grpc-stubs = "^1.53"
-mypy-protobuf = "^3.6"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.uv]
+package = true
+python-preference = "only-managed"
 
 [tool.black]
 skip-string-normalization = true
@@ -86,3 +74,15 @@ output = "changelog.md"
 provider = "github"
 sections = "fix,feat,refactor,chore,style,build,test"
 template = "angular"
+
+[dependency-groups]
+dev = [
+    "black>=26.1.0",
+    "bump-my-version>=1.2.6",
+    "git-changelog>=2.7.1",
+    "grpc-stubs>=1.53.0.6",
+    "jupyter>=1.1.1",
+    "pre-commit>=4.5.1",
+    "pytest>=9.0.2",
+    "pytest-watcher>=0.6.3",
+]

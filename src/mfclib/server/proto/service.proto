@@ -14,5 +14,3 @@ service MFCController {
 message Empty {}
 
 message StopRequest {}
-
-
