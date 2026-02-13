@@ -30,6 +30,13 @@ mfc = "mfclib.cli.main:run"
 package = true
 python-preference = "only-managed"
 
+[tool.uv.build-backend]
+source-include = ["data/**"]
+
+[build-system]
+requires = ["uv_build>=0.10.2,<0.11.0"]
+build-backend = "uv_build"
+
 [tool.black]
 skip-string-normalization = true
 extend-exclude = '''
